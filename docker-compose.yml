@@ -1,0 +1,34 @@
+version: '3.9'
+
+services:
+  db:
+    image: mariadb:11
+    container_name: reclutamiento-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: sistema_reclutamiento
+      MYSQL_USER: usuario_recludb
+      MYSQL_PASSWORD: 666
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d
+
+  web:
+    build: .
+    container_name: reclutamiento-flask
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: development
+      DB_HOST: db
+      DB_USER: usuario_recludb
+      DB_PASSWORD: 666
+      DB_NAME: sistema_reclutamiento
+    depends_on:
+      - db
+    volumes:
+      - .:/app

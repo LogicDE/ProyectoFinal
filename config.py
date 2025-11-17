@@ -7,10 +7,11 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
     
     # Configuración de la base de datos
-    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
-    MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-    MYSQL_DB = os.environ.get('MYSQL_DB', 'proyecto_final')
+    MYSQL_HOST = os.environ.get('DB_HOST', 'localhost')
+    MYSQL_USER = os.environ.get('DB_USER', 'root')
+    MYSQL_PASSWORD = os.environ.get('DB_PASSWORD', '')
+    MYSQL_DB = os.environ.get('DB_NAME', 'proyecto_final')
+
     
     # Configuración de subida de archivos
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
