@@ -1,75 +1,68 @@
 -- =======================================
--- Crear base de datos, usuario y privilegios
+-- Crear base de datos, usuario y privilegios V.2
 -- =======================================
 
--- Crear la base de datos
-CREATE DATABASE IF NOT EXISTS sistema_reclutamiento
+CREATE DATABASE IF NOT EXISTS SistemaReclutamiento
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
--- Crear el usuario
 CREATE USER IF NOT EXISTS 'usuario_recludb'@'%' IDENTIFIED BY '666';
-
--- Dar todos los privilegios sobre la base de datos al usuario
 GRANT ALL PRIVILEGES ON SistemaReclutamiento.* TO 'usuario_recludb'@'%';
-
--- Aplicar cambios de privilegios
 FLUSH PRIVILEGES;
 
--- Seleccionar la base de datos para usarla
-USE sistema_reclutamiento;
+USE SistemaReclutamiento;
 
--- =======================================
 -- ==========================
 -- Tablas principales
 -- ==========================
 
 CREATE TABLE fuentes (
   id_fuente BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_fuente TEXT NOT NULL,
-  desc_fuente TEXT
+  nom_fuente VARCHAR(80) NOT NULL,
+  desc_fuente VARCHAR(255)
 );
 
 CREATE TABLE roles (
   id_rol BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_rol TEXT NOT NULL UNIQUE,
-  desc_rol TEXT
+  nom_rol VARCHAR(50) NOT NULL UNIQUE,
+  desc_rol VARCHAR(255)
 );
 
 CREATE TABLE departamentos (
   id_departamento BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_departamento TEXT NOT NULL
+  nom_departamento VARCHAR(80) NOT NULL
 );
 
 CREATE TABLE estados_vacantes (
   id_estadovacante BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_estado TEXT NOT NULL UNIQUE,
-  desc_estado TEXT
+  nom_estado VARCHAR(50) NOT NULL UNIQUE,
+  desc_estado VARCHAR(255)
 );
 
 CREATE TABLE estados_ofertas (
   id_estadoferta BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_estado TEXT NOT NULL UNIQUE,
-  desc_estado TEXT
+  nom_estado VARCHAR(50) NOT NULL UNIQUE,
+  desc_estado VARCHAR(255)
 );
 
 CREATE TABLE estados_entrevistas (
   id_estadoentrevista BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_estado TEXT NOT NULL UNIQUE,
-  desc_estado TEXT
+  nom_estado VARCHAR(50) NOT NULL UNIQUE,
+  desc_estado VARCHAR(255)
 );
 
 CREATE TABLE etapas (
   id_etapa BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_etapa TEXT NOT NULL UNIQUE,
-  desc_etapa TEXT
+  nom_etapa VARCHAR(50) NOT NULL UNIQUE,
+  desc_etapa VARCHAR(255)
 );
 
 CREATE TABLE candidatos (
   id_candidato BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_candidato TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  telefono TEXT,
+  identificacion VARCHAR(20) NOT NULL UNIQUE,
+  nom_candidato VARCHAR(120) NOT NULL,
+  email VARCHAR(120) NOT NULL UNIQUE,
+  telefono VARCHAR(15),
   fecha_aplicacion DATE NOT NULL,
   id_fuente BIGINT,
   FOREIGN KEY (id_fuente) REFERENCES fuentes(id_fuente)
@@ -77,17 +70,17 @@ CREATE TABLE candidatos (
 
 CREATE TABLE entrevistadores (
   id_entrevistador BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom_entrevistador TEXT NOT NULL,
+  nom_entrevistador VARCHAR(120) NOT NULL,
   id_rol BIGINT NOT NULL,
-  telefono TEXT,
-  email TEXT NOT NULL UNIQUE,
-  hashed_pass TEXT,
+  telefono VARCHAR(15),
+  email VARCHAR(120) NOT NULL UNIQUE,
+  hashed_pass VARCHAR(255),
   FOREIGN KEY (id_rol) REFERENCES roles(id_rol)
 );
 
 CREATE TABLE vacantes (
   id_vacante BIGINT PRIMARY KEY AUTO_INCREMENT,
-  titulo_vacante TEXT NOT NULL,
+  titulo_vacante VARCHAR(150) NOT NULL,
   desc_vacante TEXT,
   id_departamento BIGINT,
   fecha_creacion DATE NOT NULL,
@@ -112,7 +105,7 @@ CREATE TABLE entrevistas (
   id_entrevista BIGINT PRIMARY KEY AUTO_INCREMENT,
   id_postulacion BIGINT NOT NULL,
   fecha_entrevista DATE NOT NULL,
-  puntaje INT,
+  puntaje TINYINT, -- 0 a 100
   notas TEXT,
   id_estadoentrevista BIGINT,
   id_entrevistador BIGINT,
@@ -134,14 +127,14 @@ CREATE TABLE ofertas (
 );
 
 -- ==========================
--- Auditorías
+-- Auditoría (tamaños OK)
 -- ==========================
 
 CREATE TABLE audit_candidatos (
   id_audit BIGINT PRIMARY KEY AUTO_INCREMENT,
   id_candidato BIGINT,
   op CHAR(1),
-  changed_by TEXT,
+  changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   payload JSON,
   FOREIGN KEY (id_candidato) REFERENCES candidatos(id_candidato)
@@ -151,7 +144,7 @@ CREATE TABLE audit_vacantes (
   id_audit BIGINT PRIMARY KEY AUTO_INCREMENT,
   id_vacante BIGINT,
   op CHAR(1),
-  changed_by TEXT,
+  changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   payload JSON,
   FOREIGN KEY (id_vacante) REFERENCES vacantes(id_vacante)
@@ -161,7 +154,7 @@ CREATE TABLE audit_postulaciones (
   id_audit BIGINT PRIMARY KEY AUTO_INCREMENT,
   id_postulacion BIGINT,
   op CHAR(1),
-  changed_by TEXT,
+  changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   payload JSON,
   FOREIGN KEY (id_postulacion) REFERENCES postulaciones(id_postulacion)
@@ -171,7 +164,7 @@ CREATE TABLE audit_entrevistas (
   id_audit BIGINT PRIMARY KEY AUTO_INCREMENT,
   id_entrevista BIGINT,
   op CHAR(1),
-  changed_by TEXT,
+  changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   payload JSON,
   FOREIGN KEY (id_entrevista) REFERENCES entrevistas(id_entrevista)
@@ -181,9 +174,8 @@ CREATE TABLE audit_ofertas (
   id_audit BIGINT PRIMARY KEY AUTO_INCREMENT,
   id_oferta BIGINT,
   op CHAR(1),
-  changed_by TEXT,
+  changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   payload JSON,
   FOREIGN KEY (id_oferta) REFERENCES ofertas(id_oferta)
 );
-
