@@ -1,5 +1,5 @@
 -- =======================================
--- Crear base de datos, usuario y privilegios V.2
+-- Crear base de datos, usuario y privilegios
 -- =======================================
 
 CREATE DATABASE IF NOT EXISTS SistemaReclutamiento
@@ -13,7 +13,7 @@ FLUSH PRIVILEGES;
 USE SistemaReclutamiento;
 
 -- ==========================
--- Tablas principales
+-- Tablas catálogos base
 -- ==========================
 
 CREATE TABLE fuentes (
@@ -24,6 +24,12 @@ CREATE TABLE fuentes (
 
 CREATE TABLE roles (
   id_rol BIGINT PRIMARY KEY AUTO_INCREMENT,
+  nom_rol VARCHAR(50) NOT NULL UNIQUE,
+  desc_rol VARCHAR(255)
+);
+
+CREATE TABLE roles_sistema (
+  id_rolsistema BIGINT PRIMARY KEY AUTO_INCREMENT,
   nom_rol VARCHAR(50) NOT NULL UNIQUE,
   desc_rol VARCHAR(255)
 );
@@ -57,6 +63,10 @@ CREATE TABLE etapas (
   desc_etapa VARCHAR(255)
 );
 
+-- ==========================
+-- Entidades principales
+-- ==========================
+
 CREATE TABLE candidatos (
   id_candidato BIGINT PRIMARY KEY AUTO_INCREMENT,
   identificacion VARCHAR(20) NOT NULL UNIQUE,
@@ -68,14 +78,30 @@ CREATE TABLE candidatos (
   FOREIGN KEY (id_fuente) REFERENCES fuentes(id_fuente)
 );
 
+-- Primero entrevistadores (porque usuarios depende de ellos)
 CREATE TABLE entrevistadores (
   id_entrevistador BIGINT PRIMARY KEY AUTO_INCREMENT,
   nom_entrevistador VARCHAR(120) NOT NULL,
   id_rol BIGINT NOT NULL,
   telefono VARCHAR(15),
   email VARCHAR(120) NOT NULL UNIQUE,
-  hashed_pass VARCHAR(255),
   FOREIGN KEY (id_rol) REFERENCES roles(id_rol)
+);
+
+-- ================================
+-- Tabla de usuarios del sistema
+-- ================================
+CREATE TABLE usuarios (
+  id_usuario BIGINT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(80) NOT NULL UNIQUE,
+  hashed_pass VARCHAR(255) NOT NULL,
+  email VARCHAR(120) NOT NULL UNIQUE,
+  id_rolsistema BIGINT NOT NULL,
+  id_entrevistador BIGINT,
+  activo TINYINT DEFAULT 1,
+  creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (id_rolsistema) REFERENCES roles_sistema(id_rolsistema),
+  FOREIGN KEY (id_entrevistador) REFERENCES entrevistadores(id_entrevistador)
 );
 
 CREATE TABLE vacantes (
@@ -86,7 +112,8 @@ CREATE TABLE vacantes (
   fecha_creacion DATE NOT NULL,
   id_estadovacante BIGINT,
   FOREIGN KEY (id_departamento) REFERENCES departamentos(id_departamento),
-  FOREIGN KEY (id_estadovacante) REFERENCES estados_vacantes(id_estadovacante)
+  FOREIGN KEY (id_estadovacante) REFERENCES estados_vacantes(id_estadovacante),
+  UNIQUE KEY uk_vacante_departamento (titulo_vacante, id_departamento)
 );
 
 CREATE TABLE postulaciones (
@@ -105,7 +132,7 @@ CREATE TABLE entrevistas (
   id_entrevista BIGINT PRIMARY KEY AUTO_INCREMENT,
   id_postulacion BIGINT NOT NULL,
   fecha_entrevista DATE NOT NULL,
-  puntaje TINYINT, -- 0 a 100
+  puntaje DECIMAL(4,1) NULL,
   notas TEXT,
   id_estadoentrevista BIGINT,
   id_entrevistador BIGINT,
@@ -127,7 +154,7 @@ CREATE TABLE ofertas (
 );
 
 -- ==========================
--- Auditoría (tamaños OK)
+-- Auditoría
 -- ==========================
 
 CREATE TABLE audit_candidatos (
@@ -136,8 +163,7 @@ CREATE TABLE audit_candidatos (
   op CHAR(1),
   changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  payload JSON,
-  FOREIGN KEY (id_candidato) REFERENCES candidatos(id_candidato)
+  payload JSON
 );
 
 CREATE TABLE audit_vacantes (
@@ -146,8 +172,7 @@ CREATE TABLE audit_vacantes (
   op CHAR(1),
   changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  payload JSON,
-  FOREIGN KEY (id_vacante) REFERENCES vacantes(id_vacante)
+  payload JSON
 );
 
 CREATE TABLE audit_postulaciones (
@@ -156,8 +181,7 @@ CREATE TABLE audit_postulaciones (
   op CHAR(1),
   changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  payload JSON,
-  FOREIGN KEY (id_postulacion) REFERENCES postulaciones(id_postulacion)
+  payload JSON
 );
 
 CREATE TABLE audit_entrevistas (
@@ -166,8 +190,7 @@ CREATE TABLE audit_entrevistas (
   op CHAR(1),
   changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  payload JSON,
-  FOREIGN KEY (id_entrevista) REFERENCES entrevistas(id_entrevista)
+  payload JSON
 );
 
 CREATE TABLE audit_ofertas (
@@ -176,6 +199,5 @@ CREATE TABLE audit_ofertas (
   op CHAR(1),
   changed_by VARCHAR(120),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  payload JSON,
-  FOREIGN KEY (id_oferta) REFERENCES ofertas(id_oferta)
+  payload JSON
 );
