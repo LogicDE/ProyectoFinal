@@ -1,189 +1,85 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Proyecto Final{% endblock %}
-
-{% block extra_css %}
-<style>
-    .card {
-        margin-bottom: 20px;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-        transition: transform 0.2s;
-    }
-    .card:hover {
-        transform: translateY(-5px);
-    }
-    .stat-card {
-        text-align: center;
-        padding: 20px;
-    }
-    .stat-card i {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-    }
-    .stat-card .number {
-        font-size: 2rem;
-        font-weight: bold;
-    }
-    .stat-card .label {
-        color: #6c757d;
-        text-transform: uppercase;
-        font-size: 0.8rem;
-        letter-spacing: 1px;
-    }
-    #chart-container {
-        height: 400px;
-        min-width: 310px;
-        margin: 0 auto;
-    }
-</style>
-{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1 class="mb-4">Panel de Control</h1>
-    
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card stat-card text-white bg-primary">
-                <div class="card-body">
-                    <i class="fas fa-users"></i>
-                    <div class="number" id="total-users">0</div>
-                    <div class="label">Usuarios</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card text-white bg-success">
-                <div class="card-body">
-                    <i class="fas fa-chart-line"></i>
-                    <div class="number" id="total-sales">0</div>
-                    <div class="label">Ventas</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card text-white bg-info">
-                <div class="card-body">
-                    <i class="fas fa-box"></i>
-                    <div class="number" id="total-products">0</div>
-                    <div class="label">Productos</div>
-                </div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Candidatos</h5>
+                <h2 class="card-text">{{ total_candidatos }}</h2>
             </div>
         </div>
     </div>
-
-    <!-- Charts -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="card-title mb-0">Estadísticas de Ventas</h5>
-        </div>
-        <div class="card-body">
-            <div id="chart-container"></div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Vacantes Activas</h5>
+                <h2 class="card-text">{{ vacantes_activas }}</h2>
+            </div>
         </div>
     </div>
-
-    <!-- Recent Activity -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">Actividad Reciente</h5>
-            <a href="#" class="btn btn-sm btn-outline-primary">Ver Todo</a>
+    <div class="col-md-4">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <h5 class="card-title">En Proceso</h5>
+                <h2 class="card-text">{{ en_proceso }}</h2>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="list-group list-group-flush">
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">Nuevo usuario registrado</h6>
-                        <small class="text-muted">Hace 5 min</small>
-                    </div>
-                    <p class="mb-1">Juan Pérez se ha registrado en el sistema.</p>
-                </div>
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">Nueva venta realizada</h6>
-                        <small class="text-muted">Hace 1 hora</small>
-                    </div>
-                    <p class="mb-1">Se ha realizado una venta por $1,250.00</p>
-                </div>
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">Producto actualizado</h6>
-                        <small class="text-muted">Hace 3 horas</small>
-                    </div>
-                    <p class="mb-1">El producto "Laptop HP" ha sido actualizado.</p>
-                </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Conversión por Fuente</h5>
+            </div>
+            <div class="card-body">
+                <div id="chartConversionFuente" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Ofertas Mensuales</h5>
+            </div>
+            <div class="card-body">
+                <div id="chartOfertasMensuales" style="height: 300px;"></div>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
 <script>
-// Inicializar el gráfico cuando el documento esté listo
-$(document).ready(function() {
-    // Cargar datos del gráfico desde la API
-    $.getJSON("{{ url_for('chart_data') }}", function (data) {
-        // Configuración del gráfico
-        Highcharts.chart('chart-container', {
-            chart: {
-                type: 'column'
-            },
-            title: {
-                text: 'Ventas por Mes',
-                align: 'left'
-            },
-            subtitle: {
-                text: 'Resumen de ventas mensuales',
-                align: 'left'
-            },
-            xAxis: {
-                type: 'category',
-                labels: {
-                    rotation: -45,
-                    style: {
-                        fontSize: '13px',
-                        fontFamily: 'Verdana, sans-serif'
-                    }
-                }
-            },
-            yAxis: {
-                min: 0,
-                title: {
-                    text: 'Ventas ($)'
-                }
-            },
-            legend: {
-                enabled: false
-            },
-            tooltip: {
-                pointFormat: 'Ventas: <b>${point.y:,.0f}</b>'
-            },
-            series: [{
-                name: 'Ventas',
-                data: data,
-                dataLabels: {
-                    enabled: true,
-                    rotation: -90,
-                    color: '#FFFFFF',
-                    align: 'right',
-                    format: '${point.y:,.0f}',
-                    y: 10,
-                    style: {
-                        fontSize: '13px',
-                        fontFamily: 'Verdana, sans-serif'
-                    }
-                }
-            }]
+// Gráfica de conversión por fuente
+fetch('/api/reporte/conversion-fuente')
+    .then(response => response.json())
+    .then(data => {
+        Highcharts.chart('chartConversionFuente', {
+            chart: { type: 'column' },
+            title: { text: 'Tasa de Conversión por Fuente' },
+            xAxis: { categories: data.categorias },
+            yAxis: { title: { text: 'Porcentaje (%)' }},
+            series: data.series
         });
     });
 
-    // Simular carga de datos para las tarjetas de estadísticas
-    setTimeout(function() {
-        $('#total-users').text('1,245');
-        $('#total-sales').text('$34,521');
-        $('#total-products').text('89');
-    }, 1000);
-});
+// Gráfica de ofertas mensuales
+fetch('/api/reporte/ofertas-mensuales')
+    .then(response => response.json())
+    .then(data => {
+        Highcharts.chart('chartOfertasMensuales', {
+            chart: { type: 'area' },
+            title: { text: 'Ofertas Emitidas vs Aceptadas' },
+            xAxis: { categories: data.meses },
+            yAxis: { title: { text: 'Cantidad' }},
+            series: data.series
+        });
+    });
 </script>
 {% endblock %}

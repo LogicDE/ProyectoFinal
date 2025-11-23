@@ -8,9 +8,10 @@ class Config:
     
     # Configuración de la base de datos
     MYSQL_HOST = os.environ.get('DB_HOST', 'localhost')
-    MYSQL_USER = os.environ.get('DB_USER', 'root')
-    MYSQL_PASSWORD = os.environ.get('DB_PASSWORD', '')
-    MYSQL_DB = os.environ.get('DB_NAME', 'proyecto_final')
+    MYSQL_USER = os.environ.get('DB_USER', 'usuario_recludb')
+    MYSQL_PASSWORD = os.environ.get('DB_PASSWORD', '666')
+    MYSQL_DB = os.environ.get('DB_NAME', 'sistema_reclutamiento')
+    MYSQL_CURSORCLASS = 'DictCursor'
 
     
     # Configuración de subida de archivos
