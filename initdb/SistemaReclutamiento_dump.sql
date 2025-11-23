@@ -1032,7 +1032,7 @@ CREATE TABLE `roles_sistema` (
   `desc_rol` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_rolsistema`),
   UNIQUE KEY `nom_rol` (`nom_rol`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1044,7 +1044,10 @@ LOCK TABLES `roles_sistema` WRITE;
 INSERT INTO `roles_sistema` VALUES
 (1,'Admin',NULL),
 (2,'Reclutador',NULL),
-(3,'Entrevistador',NULL);
+(3,'Entrevistador',NULL),
+(9,'Recruiter','Acceso a vacantes, candidatos y reportes'),
+(10,'Hiring Manager','Acceso a vacantes y candidatos de su departamento'),
+(11,'Auditor','Acceso solo a vistas de control y reportes');
 /*!40000 ALTER TABLE `roles_sistema` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1084,6 +1087,104 @@ INSERT INTO `usuarios` VALUES
 (1,'admin','1234','admin@test.com',1,NULL,1,'2025-11-23 02:11:35');
 /*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Temporary table structure for view `vCandidatosDescartados`
+--
+
+DROP TABLE IF EXISTS `vCandidatosDescartados`;
+/*!50001 DROP VIEW IF EXISTS `vCandidatosDescartados`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vCandidatosDescartados` AS SELECT
+ 1 AS `nom_candidato`,
+  1 AS `titulo_vacante`,
+  1 AS `nom_etapa` */;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary table structure for view `vCandidatosEnProceso`
+--
+
+DROP TABLE IF EXISTS `vCandidatosEnProceso`;
+/*!50001 DROP VIEW IF EXISTS `vCandidatosEnProceso`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vCandidatosEnProceso` AS SELECT
+ 1 AS `nom_candidato`,
+  1 AS `titulo_vacante`,
+  1 AS `nom_etapa` */;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary table structure for view `vCargaEntrevistadores`
+--
+
+DROP TABLE IF EXISTS `vCargaEntrevistadores`;
+/*!50001 DROP VIEW IF EXISTS `vCargaEntrevistadores`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vCargaEntrevistadores` AS SELECT
+ 1 AS `nom_entrevistador`,
+  1 AS `total_entrevistas` */;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary table structure for view `vConversionPorFuente`
+--
+
+DROP TABLE IF EXISTS `vConversionPorFuente`;
+/*!50001 DROP VIEW IF EXISTS `vConversionPorFuente`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vConversionPorFuente` AS SELECT
+ 1 AS `nom_fuente`,
+  1 AS `total_postulaciones`,
+  1 AS `ofertas_aceptadas`,
+  1 AS `conversion_pct` */;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary table structure for view `vEntrevistasSemana`
+--
+
+DROP TABLE IF EXISTS `vEntrevistasSemana`;
+/*!50001 DROP VIEW IF EXISTS `vEntrevistasSemana`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vEntrevistasSemana` AS SELECT
+ 1 AS `semana`,
+  1 AS `id_entrevistador`,
+  1 AS `total_entrevistas` */;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary table structure for view `vOfertasEmitidasAceptadas`
+--
+
+DROP TABLE IF EXISTS `vOfertasEmitidasAceptadas`;
+/*!50001 DROP VIEW IF EXISTS `vOfertasEmitidasAceptadas`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vOfertasEmitidasAceptadas` AS SELECT
+ 1 AS `anio`,
+  1 AS `mes`,
+  1 AS `emitidas`,
+  1 AS `aceptadas` */;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary table structure for view `vTiempoMedioPorEtapa`
+--
+
+DROP TABLE IF EXISTS `vTiempoMedioPorEtapa`;
+/*!50001 DROP VIEW IF EXISTS `vTiempoMedioPorEtapa`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vTiempoMedioPorEtapa` AS SELECT
+ 1 AS `nom_etapa`,
+  1 AS `dias_promedio` */;
+SET character_set_client = @saved_cs_client;
 
 --
 -- Table structure for table `vacantes`
@@ -1212,6 +1313,165 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Temporary table structure for view `vpipelinePorVacante`
+--
+
+DROP TABLE IF EXISTS `vpipelinePorVacante`;
+/*!50001 DROP VIEW IF EXISTS `vpipelinePorVacante`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8mb4;
+/*!50001 CREATE VIEW `vpipelinePorVacante` AS SELECT
+ 1 AS `id_vacante`,
+  1 AS `titulo_vacante`,
+  1 AS `nom_etapa`,
+  1 AS `total_candidatos` */;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Final view structure for view `vCandidatosDescartados`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vCandidatosDescartados`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vCandidatosDescartados` AS select `c`.`nom_candidato` AS `nom_candidato`,`v`.`titulo_vacante` AS `titulo_vacante`,`e`.`nom_etapa` AS `nom_etapa` from (((`postulaciones` `p` join `candidatos` `c` on(`p`.`id_candidato` = `c`.`id_candidato`)) join `vacantes` `v` on(`p`.`id_vacante` = `v`.`id_vacante`)) join `etapas` `e` on(`p`.`id_etapa` = `e`.`id_etapa`)) where `e`.`nom_etapa` = 'Rechazado' */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vCandidatosEnProceso`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vCandidatosEnProceso`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vCandidatosEnProceso` AS select `c`.`nom_candidato` AS `nom_candidato`,`v`.`titulo_vacante` AS `titulo_vacante`,`e`.`nom_etapa` AS `nom_etapa` from (((`postulaciones` `p` join `candidatos` `c` on(`p`.`id_candidato` = `c`.`id_candidato`)) join `vacantes` `v` on(`p`.`id_vacante` = `v`.`id_vacante`)) join `etapas` `e` on(`p`.`id_etapa` = `e`.`id_etapa`)) where !(`p`.`id_etapa` in (select `etapas`.`id_etapa` from `etapas` where `etapas`.`nom_etapa` = 'Rechazado')) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vCargaEntrevistadores`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vCargaEntrevistadores`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vCargaEntrevistadores` AS select `en`.`nom_entrevistador` AS `nom_entrevistador`,count(0) AS `total_entrevistas` from (`entrevistas` `t` join `entrevistadores` `en` on(`t`.`id_entrevistador` = `en`.`id_entrevistador`)) group by `en`.`nom_entrevistador` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vConversionPorFuente`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vConversionPorFuente`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vConversionPorFuente` AS select `f`.`nom_fuente` AS `nom_fuente`,count(`p`.`id_postulacion`) AS `total_postulaciones`,sum(case when `o`.`id_estadoferta` = 2 then 1 else 0 end) AS `ofertas_aceptadas`,round(sum(case when `o`.`id_estadoferta` = 2 then 1 else 0 end) / count(`p`.`id_postulacion`) * 100,2) AS `conversion_pct` from (((`postulaciones` `p` join `candidatos` `c` on(`p`.`id_candidato` = `c`.`id_candidato`)) join `fuentes` `f` on(`c`.`id_fuente` = `f`.`id_fuente`)) left join `ofertas` `o` on(`p`.`id_postulacion` = `o`.`id_postulacion`)) group by `f`.`nom_fuente` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vEntrevistasSemana`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vEntrevistasSemana`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vEntrevistasSemana` AS select yearweek(`entrevistas`.`fecha_entrevista`,1) AS `semana`,`entrevistas`.`id_entrevistador` AS `id_entrevistador`,count(0) AS `total_entrevistas` from `entrevistas` group by yearweek(`entrevistas`.`fecha_entrevista`,1),`entrevistas`.`id_entrevistador` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vOfertasEmitidasAceptadas`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vOfertasEmitidasAceptadas`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vOfertasEmitidasAceptadas` AS select year(`ofertas`.`fecha_decision`) AS `anio`,month(`ofertas`.`fecha_decision`) AS `mes`,sum(case when `ofertas`.`id_estadoferta` = 1 then 1 else 0 end) AS `emitidas`,sum(case when `ofertas`.`id_estadoferta` = 2 then 1 else 0 end) AS `aceptadas` from `ofertas` group by year(`ofertas`.`fecha_decision`),month(`ofertas`.`fecha_decision`) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vTiempoMedioPorEtapa`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vTiempoMedioPorEtapa`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vTiempoMedioPorEtapa` AS select `e`.`nom_etapa` AS `nom_etapa`,round(avg(to_days(curdate()) - to_days(`p`.`fecha_postula`)),2) AS `dias_promedio` from (`postulaciones` `p` join `etapas` `e` on(`p`.`id_etapa` = `e`.`id_etapa`)) group by `e`.`nom_etapa` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vpipelinePorVacante`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vpipelinePorVacante`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb3 */;
+/*!50001 SET character_set_results     = utf8mb3 */;
+/*!50001 SET collation_connection      = utf8mb3_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`usuario_recludb`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `vpipelinePorVacante` AS select `v`.`id_vacante` AS `id_vacante`,`v`.`titulo_vacante` AS `titulo_vacante`,`e`.`nom_etapa` AS `nom_etapa`,count(`p`.`id_postulacion`) AS `total_candidatos` from ((`vacantes` `v` left join `postulaciones` `p` on(`v`.`id_vacante` = `p`.`id_vacante`)) left join `etapas` `e` on(`p`.`id_etapa` = `e`.`id_etapa`)) group by `v`.`id_vacante`,`e`.`id_etapa` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1222,4 +1482,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-23  3:02:46
+-- Dump completed on 2025-11-23  3:33:46
