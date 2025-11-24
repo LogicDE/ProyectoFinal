@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Feedback - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-check me-2"></i>Registrar Feedback de Entrevista</h2>
+    <a href="{{ url_for('entrevistas') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver a Entrevistas
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Formulario de Feedback</h6>
+            </div>
+            <div class="card-body">
+                <div id="infoEntrevista" class="alert alert-info mb-3">
+                    <!-- La información de la entrevista se cargará aquí -->
+                </div>
+                
+                <form id="formFeedback" method="POST" action="{{ url_for('registrar_feedback_entrevista', id=entrevista_id) }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="puntaje" class="form-label">Puntaje (0-100) *</label>
+                                <input type="number" class="form-control" id="puntaje" name="puntaje" 
+                                       min="0" max="100" step="1" required>
+                                <div class="form-text">Calificación general del candidato en la entrevista.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_estadoentrevista" class="form-label">Estado Final</label>
+                                <select class="form-control" id="id_estadoentrevista" name="id_estadoentrevista" required>
+                                    {% for estado in estados_entrevista %}
+                                    <option value="{{ estado.id_estadoentrevista }}" {% if estado.id_estadoentrevista == 3 %}selected{% endif %}>
+                                        {{ estado.nom_estado }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="comentarios" class="form-label">Comentarios y Observaciones *</label>
+                        <textarea class="form-control" id="comentarios" name="comentarios" rows="5" 
+                                  placeholder="Describa el desempeño del candidato, fortalezas, áreas de mejora, recomendaciones, etc." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Recomendación</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recomendacion" id="recomendacion_avanzar" value="avanzar" checked>
+                            <label class="form-check-label text-success" for="recomendacion_avanzar">
+                                <i class="fas fa-thumbs-up me-1"></i>Recomendado para avanzar
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recomendacion" id="recomendacion_considerar" value="considerar">
+                            <label class="form-check-label text-warning" for="recomendacion_considerar">
+                                <i class="fas fa-minus-circle me-1"></i>Considerar con reservas
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recomendacion" id="recomendacion_rechazar" value="rechazar">
+                            <label class="form-check-label text-danger" for="recomendacion_rechazar">
+                                <i class="fas fa-thumbs-down me-1"></i>No recomendado
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('entrevistas') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i>Guardar Feedback
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Información de la Entrevista -->
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Detalles de la Entrevista</h6>
+            </div>
+            <div class="card-body" id="detallesEntrevista">
+                <!-- Los detalles se cargarán via JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar detalles de la entrevista
+    cargarDetallesEntrevista({{ entrevista_id }});
+});
+
+function cargarDetallesEntrevista(idEntrevista) {
+    fetch(`/api/entrevistas/${idEntrevista}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const entrevista = data.entrevista;
+                
+                // Mostrar información de la entrevista
+                document.getElementById('infoEntrevista').innerHTML = `
+                    <h6>Información de la Entrevista:</h6>
+                    <strong>Candidato:</strong> ${entrevista.nom_candidato}<br>
+                    <strong>Vacante:</strong> ${entrevista.titulo_vacante}<br>
+                    <strong>Entrevistador:</strong> ${entrevista.nom_entrevistador}<br>
+                    <strong>Fecha:</strong> ${entrevista.fecha_sola} ${entrevista.hora_sola}
+                `;
+                
+                // Mostrar detalles adicionales
+                document.getElementById('detallesEntrevista').innerHTML = `
+                    <div class="mb-3">
+                        <strong>ID de Entrevista:</strong><br>
+                        <code>${entrevista.id_entrevista}</code>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Candidato:</strong><br>
+                        ${entrevista.nom_candidato}<br>
+                        <small class="text-muted">${entrevista.email_candidato}</small>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Vacante:</strong><br>
+                        ${entrevista.titulo_vacante}<br>
+                        <small class="text-muted">${entrevista.nom_departamento || 'No especificado'}</small>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Entrevistador:</strong><br>
+                        ${entrevista.nom_entrevistador}<br>
+                        <small class="text-muted">${entrevista.email_entrevistador || 'No especificado'}</small>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Fecha y Hora:</strong><br>
+                        ${entrevista.fecha_sola} ${entrevista.hora_sola}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Estado Actual:</strong><br>
+                        <span class="badge bg-primary">${entrevista.estado_entrevista}</span>
+                    </div>
+                    ${entrevista.notas ? `
+                    <div class="mb-3">
+                        <strong>Notas:</strong><br>
+                        <div class="alert alert-info">${entrevista.notas}</div>
+                    </div>
+                    ` : ''}
+                `;
+            } else {
+                document.getElementById('infoEntrevista').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error: ${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('infoEntrevista').innerHTML = `
+                <div class="alert alert-danger">
+                    Error al cargar los detalles de la entrevista
+                </div>
+            `;
+        });
+}
+
+// Validación del formulario
+document.getElementById('formFeedback').addEventListener('submit', function(e) {
+    const puntaje = document.getElementById('puntaje').value;
+    const comentarios = document.getElementById('comentarios').value;
+    
+    // Validación básica
+    if (!puntaje || !comentarios) {
+        e.preventDefault();
+        alert('Por favor, complete todos los campos obligatorios');
+        return;
+    }
+    
+    // Validar rango del puntaje
+    if (puntaje < 0 || puntaje > 100) {
+        e.preventDefault();
+        alert('El puntaje debe estar entre 0 y 100');
+        return;
+    }
+});
+</script>
+
+<style>
+.card {
+    margin-bottom: 1rem;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+</style>
+{% endblock %}

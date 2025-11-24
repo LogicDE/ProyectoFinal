@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Oferta - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-edit me-2"></i>Editar Oferta</h2>
+    <a href="{{ url_for('ofertas') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver a Ofertas
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Información de la Oferta</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('editar_oferta', id=oferta.id_oferta) }}">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Candidato</label>
+                            <input type="text" class="form-control" value="{{ oferta.nom_candidato }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Vacante</label>
+                            <input type="text" class="form-control" value="{{ oferta.titulo_vacante }}" readonly>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="monto_oferta" class="form-label">Monto de la Oferta *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="monto_oferta" name="monto_oferta" 
+                                       step="0.01" min="0" required 
+                                       value="{{ oferta.monto_oferta }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_estadoferta" class="form-label">Estado *</label>
+                            <select class="form-control" id="id_estadoferta" name="id_estadoferta" required>
+                                {% for estado in estados_oferta %}
+                                <option value="{{ estado.id_estadoferta }}" 
+                                        {% if estado.id_estadoferta == oferta.id_estadoferta %}selected{% endif %}>
+                                    {{ estado.nom_estado }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notas" class="form-label">Notas Adicionales</label>
+                        <textarea class="form-control" id="notas" name="notas" rows="4" 
+                                  placeholder="Observaciones o condiciones especiales de la oferta...">{{ oferta.notas or '' }}</textarea>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Información:</strong> 
+                        {% if oferta.fecha_emision %}
+                        Oferta emitida el {{ oferta.fecha_emision.strftime('%d/%m/%Y') }}
+                        {% if oferta.fecha_decision %}
+                        y decidida el {{ oferta.fecha_decision.strftime('%d/%m/%Y') }}
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('ofertas') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Actualizar Oferta
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Información de la postulación -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">Información de la Postulación</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><strong>ID Postulación:</strong> {{ oferta.id_postulacion }}</li>
+                    <li><strong>Candidato:</strong> {{ oferta.nom_candidato }}</li>
+                    <li><strong>Vacante:</strong> {{ oferta.titulo_vacante }}</li>
+                    <li><strong>Estado Actual:</strong> 
+                        <span class="badge bg-{{ 
+                            'warning' if oferta.id_estadoferta == 1 else 
+                            'success' if oferta.id_estadoferta == 2 else 
+                            'danger' 
+                        }}">
+                            {{ oferta.estado_oferta }}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Acciones rápidas -->
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">Acciones Rápidas</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if oferta.id_estadoferta == 1 %}
+                    <form method="POST" action="{{ url_for('decidir_oferta', id=oferta.id_oferta) }}" class="d-grid">
+                        <input type="hidden" name="id_estadoferta" value="2">
+                        <button type="submit" class="btn btn-success mb-2">
+                            <i class="fas fa-check me-1"></i>Marcar como Aceptada
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('decidir_oferta', id=oferta.id_oferta) }}" class="d-grid">
+                        <input type="hidden" name="id_estadoferta" value="3">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-times me-1"></i>Marcar como Rechazada
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    {% if oferta.id_estadoferta != 2 and oferta.id_estadoferta != 3 %}
+                    <form method="POST" action="{{ url_for('eliminar_oferta', id=oferta.id_oferta) }}" 
+                          onsubmit="return confirm('¿Está seguro que desea eliminar esta oferta?')" class="d-grid">
+                        <button type="submit" class="btn btn-outline-danger mt-2">
+                            <i class="fas fa-trash me-1"></i>Eliminar Oferta
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

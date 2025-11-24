@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Perfil - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user me-2"></i>Mi Perfil</h2>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <!-- Tarjeta de Información del Usuario -->
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="avatar-circle-lg bg-primary text-white mx-auto mb-3">
+                    {{ usuario.username[0]|upper }}
+                </div>
+                <h4>{{ usuario.username }}</h4>
+                <p class="text-muted">{{ usuario.email }}</p>
+                <span class="badge bg-primary">{{ usuario.nom_rol }}</span>
+                
+                <hr>
+                
+                <div class="text-start">
+                    <p><strong>ID de Usuario:</strong><br><code>{{ usuario.id_usuario }}</code></p>
+                    <p><strong>Fecha de Registro:</strong><br>{{ usuario.creado_en }}</p>
+                    {% if usuario.nom_entrevistador %}
+                    <p><strong>Entrevistador Asociado:</strong><br>{{ usuario.nom_entrevistador }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información de Sesión -->
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Información de Sesión</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Usuario Actual:</strong> {{ session.username }}</p>
+                <p><strong>Rol en Sesión:</strong> {{ session.nom_rol }}</p>
+                <p><strong>ID de Sesión:</strong> <code>{{ session.id_usuario }}</code></p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Formulario de Edición de Perfil -->
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Editar Información Personal</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('actualizar_perfil') }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Nombre de Usuario</label>
+                                <input type="text" class="form-control" value="{{ usuario.username }}" readonly>
+                                <div class="form-text">El nombre de usuario no se puede cambiar.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ usuario.email }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nueva_password" class="form-label">Nueva Contraseña</label>
+                                <input type="password" class="form-control" id="nueva_password" name="nueva_password"
+                                       placeholder="Dejar en blanco para mantener la actual">
+                                <div class="form-text">Mínimo 6 caracteres.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">Confirmar Nueva Contraseña</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                                       placeholder="Confirmar nueva contraseña">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Información:</strong> Los cambios en el email y contraseña afectarán tu próxima sesión.
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Actualizar Perfil
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Información del Rol y Permisos -->
+        <div class="card shadow mt-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Mis Permisos y Accesos</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Módulo</th>
+                                <th>Permisos</th>
+                                <th>Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Candidatos</td>
+                                <td>
+                                    <span class="badge bg-success">Ver</span>
+                                    {% if usuario.id_rolsistema in [1, 2, 9] %}
+                                    <span class="badge bg-warning">Editar</span>
+                                    <span class="badge bg-danger">Eliminar</span>
+                                    {% endif %}
+                                </td>
+                                <td>Gestión de candidatos y postulantes</td>
+                            </tr>
+                            <tr>
+                                <td>Vacantes</td>
+                                <td>
+                                    <span class="badge bg-success">Ver</span>
+                                    {% if usuario.id_rolsistema in [1, 2, 9, 10] %}
+                                    <span class="badge bg-warning">Editar</span>
+                                    {% endif %}
+                                    {% if usuario.id_rolsistema in [1, 2, 9] %}
+                                    <span class="badge bg-danger">Eliminar</span>
+                                    {% endif %}
+                                </td>
+                                <td>Gestión de vacantes y posiciones</td>
+                            </tr>
+                            <tr>
+                                <td>Entrevistas</td>
+                                <td>
+                                    <span class="badge bg-success">Ver</span>
+                                    {% if usuario.id_rolsistema in [1, 2, 9] %}
+                                    <span class="badge bg-warning">Programar</span>
+                                    {% endif %}
+                                </td>
+                                <td>Programación y gestión de entrevistas</td>
+                            </tr>
+                            <tr>
+                                <td>Usuarios</td>
+                                <td>
+                                    {% if usuario.id_rolsistema == 1 %}
+                                    <span class="badge bg-success">Ver</span>
+                                    <span class="badge bg-warning">Editar</span>
+                                    <span class="badge bg-danger">Administrar</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Sin acceso</span>
+                                    {% endif %}
+                                </td>
+                                <td>Gestión de usuarios del sistema</td>
+                            </tr>
+                            <tr>
+                                <td>Reportes</td>
+                                <td>
+                                    <span class="badge bg-success">Ver</span>
+                                    {% if usuario.id_rolsistema in [1, 2] %}
+                                    <span class="badge bg-info">Exportar</span>
+                                    {% endif %}
+                                </td>
+                                <td>Reportes y estadísticas del sistema</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Validación del formulario de perfil
+document.querySelector('form').addEventListener('submit', function(e) {
+    const nuevaPassword = document.getElementById('nueva_password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    
+    // Validar que las contraseñas coincidan si se proporcionan
+    if (nuevaPassword || confirmPassword) {
+        if (nuevaPassword !== confirmPassword) {
+            e.preventDefault();
+            alert('Las contraseñas no coinciden');
+            return;
+        }
+        
+        if (nuevaPassword.length < 6) {
+            e.preventDefault();
+            alert('La nueva contraseña debe tener al menos 6 caracteres');
+            return;
+        }
+    }
+});
+</script>
+
+<style>
+.avatar-circle-lg {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 2.5rem;
+}
+</style>
+{% endblock %}

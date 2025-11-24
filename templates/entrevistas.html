@@ -1,0 +1,847 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Entrevistas - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-calendar-alt me-2"></i>Gestión de Entrevistas</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEntrevista" onclick="limpiarFormulario()">
+        <i class="fas fa-plus me-1"></i>Programar Entrevista
+    </button>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Buscar entrevistas..." id="busquedaEntrevistas">
+                    <button class="btn btn-outline-secondary" type="button" onclick="filtrarEntrevistas()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="filtroEstado">
+                    <option value="">Todos los estados</option>
+                    {% for estado in estados_entrevista %}
+                    <option value="{{ estado.id_estadoentrevista }}">{{ estado.nom_estado }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="filtroEntrevistador">
+                    <option value="">Todos los entrevistadores</option>
+                    {% for entrevistador in entrevistadores %}
+                    <option value="{{ entrevistador.id_entrevistador }}">{{ entrevistador.nom_entrevistador }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="date" class="form-control" id="filtroFecha" placeholder="Filtrar por fecha">
+            </div>
+            <div class="col-md-3 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-info" onclick="exportarEntrevistas()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="recargarTabla()">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                    <a href="{{ url_for('calendario') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar me-1"></i>Ver Calendario
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Rápidas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ entrevistas|length }}</h4>
+                        <p class="mb-0">Total Entrevistas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ entrevistas|selectattr('tipo_fecha', 'equalto', 'Hoy')|list|length }}</h4>
+                        <p class="mb-0">Hoy</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ entrevistas|selectattr('id_estadoentrevista', 'equalto', 1)|list|length }}</h4>
+                        <p class="mb-0">Programadas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ entrevistas|selectattr('id_estadoentrevista', 'equalto', 3)|list|length }}</h4>
+                        <p class="mb-0">Completadas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clipboard-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Entrevistas -->
+<div class="card shadow">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Entrevistas</h6>
+        <span class="badge bg-primary">{{ entrevistas|length }} entrevistas</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="tablaEntrevistas">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Candidato</th>
+                        <th>Vacante</th>
+                        <th>Entrevistador</th>
+                        <th>Fecha y Hora</th>
+                        <th>Estado</th>
+                        <th>Puntaje</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrevista in entrevistas %}
+                    <tr data-entrevista-id="{{ entrevista.id_entrevista }}" 
+                        data-estado-id="{{ entrevista.id_estadoentrevista }}"
+                        data-entrevistador-id="{{ entrevista.id_entrevistador }}"
+                        data-fecha="{{ entrevista.fecha_entrevista.strftime('%Y-%m-%d') }}"
+                        class="{% if entrevista.tipo_fecha == 'Hoy' %}table-warning{% elif entrevista.tipo_fecha == 'Pasada' %}table-light{% endif %}">
+                        <td>{{ entrevista.id_entrevista }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle bg-success text-white me-2">
+                                    {{ entrevista.nom_candidato[0]|upper }}
+                                </div>
+                                <div>
+                                    <strong>{{ entrevista.nom_candidato }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ entrevista.email_candidato }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <strong>{{ entrevista.titulo_vacante }}</strong>
+                            <br>
+                            <small class="text-muted">{{ entrevista.nom_departamento }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle-sm bg-primary text-white me-2">
+                                    {{ entrevista.nom_entrevistador[0]|upper }}
+                                </div>
+                                <div>
+                                    <strong>{{ entrevista.nom_entrevistador }}</strong>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+    <strong>{{ entrevista.fecha_entrevista.strftime('%d/%m/%Y') }}</strong>
+    <br>
+    <small class="text-muted">{{ entrevista.fecha_entrevista.strftime('%H:%M') }}</small>
+    {% if entrevista.tipo_fecha == 'Hoy' %}
+    <span class="badge bg-warning ms-1">Hoy</span>
+    {% elif entrevista.tipo_fecha == 'Pasada' %}
+    <span class="badge bg-secondary ms-1">Pasada</span>
+    {% endif %}
+</td>
+                        <td>
+                            <span class="badge bg-{{ 
+                                'success' if entrevista.id_estadoentrevista == 1 else 
+                                'warning' if entrevista.id_estadoentrevista == 2 else 
+                                'info' if entrevista.id_estadoentrevista == 3 else 
+                                'secondary' 
+                            }}">
+                                {{ entrevista.estado_entrevista }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if entrevista.puntaje %}
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-{{ 
+                                    'danger' if entrevista.puntaje < 60 else 
+                                    'warning' if entrevista.puntaje < 80 else 
+                                    'success' 
+                                }} me-2">
+                                    {{ entrevista.puntaje }}
+                                </span>
+                                <div class="progress" style="width: 60px; height: 8px;">
+                                    <div class="progress-bar bg-{{ 
+                                        'danger' if entrevista.puntaje < 60 else 
+                                        'warning' if entrevista.puntaje < 80 else 
+                                        'success' 
+                                    }}" style="width: {{ entrevista.puntaje }}%"></div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">Sin calificar</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if entrevista.id_estadoentrevista in [1, 2] %}
+                                <button class="btn btn-outline-success" 
+                                        onclick="registrarFeedback({{ entrevista.id_entrevista }})"
+                                        data-bs-toggle="tooltip" title="Registrar Feedback">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </button>
+                                {% endif %}
+                                
+                                <button class="btn btn-outline-warning" 
+                                        onclick="editarEntrevista({{ entrevista.id_entrevista }})"
+                                        data-bs-toggle="tooltip" title="Editar Entrevista">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                
+                                <button class="btn btn-outline-info" 
+                                        onclick="verDetalles({{ entrevista.id_entrevista }})"
+                                        data-bs-toggle="tooltip" title="Ver Detalles">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                
+                                <button class="btn btn-outline-danger" 
+                                        onclick="confirmarEliminacion({{ entrevista.id_entrevista }})"
+                                        data-bs-toggle="tooltip" title="Eliminar Entrevista">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Mensaje si no hay entrevistas -->
+        {% if not entrevistas %}
+        <div class="text-center py-4">
+            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No hay entrevistas programadas</h5>
+            <p class="text-muted">Comienza programando la primera entrevista.</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEntrevista">
+                <i class="fas fa-plus me-1"></i>Programar Primera Entrevista
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para Programar Entrevista -->
+<div class="modal fade" id="modalEntrevista" tabindex="-1" aria-labelledby="modalEntrevistaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEntrevistaLabel">Programar Nueva Entrevista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEntrevista" method="POST" action="{{ url_for('crear_entrevista') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_postulacion" class="form-label">Postulación *</label>
+                                <select class="form-control" id="id_postulacion" name="id_postulacion" required>
+                                    <option value="">Seleccionar postulación...</option>
+                                    {% for postulacion in postulaciones %}
+                                    <option value="{{ postulacion.id_postulacion }}">{{ postulacion.descripcion }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Seleccione la postulación para la entrevista.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_entrevistador" class="form-label">Entrevistador *</label>
+                                <select class="form-control" id="id_entrevistador" name="id_entrevistador" required>
+                                    <option value="">Seleccionar entrevistador...</option>
+                                    {% for entrevistador in entrevistadores %}
+                                    <option value="{{ entrevistador.id_entrevistador }}">{{ entrevistador.nom_entrevistador }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_entrevista" class="form-label">Fecha *</label>
+                                <input type="date" class="form-control" id="fecha_entrevista" name="fecha_entrevista" 
+                                       min="{{ now.strftime('%Y-%m-%d') if now else '2024-01-15' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="hora_entrevista" class="form-label">Hora *</label>
+                                <input type="time" class="form-control" id="hora_entrevista" name="hora_entrevista" 
+                                       value="09:00" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_estadoentrevista" class="form-label">Estado</label>
+                                <select class="form-control" id="id_estadoentrevista" name="id_estadoentrevista">
+                                    {% for estado in estados_entrevista %}
+                                    <option value="{{ estado.id_estadoentrevista }}" {% if estado.id_estadoentrevista == 1 %}selected{% endif %}>
+                                        {{ estado.nom_estado }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="duracion" class="form-label">Duración Estimada</label>
+                                <select class="form-control" id="duracion" name="duracion">
+                                    <option value="30">30 minutos</option>
+                                    <option value="45" selected>45 minutos</option>
+                                    <option value="60">1 hora</option>
+                                    <option value="90">1 hora 30 minutos</option>
+                                    <option value="120">2 horas</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notas" class="form-label">Notas Adicionales</label>
+                        <textarea class="form-control" id="notas" name="notas" rows="3" 
+                                  placeholder="Agregar notas, preguntas preparadas, ubicación, etc."></textarea>
+                    </div>
+                    
+                    <!-- Información de la postulación seleccionada -->
+                    <div id="infoPostulacion" class="alert alert-info" style="display: none;">
+                        <h6>Información de la Postulación:</h6>
+                        <div id="detallesPostulacion"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-calendar-plus me-1"></i>Programar Entrevista
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Registrar Feedback -->
+<div class="modal fade" id="modalFeedback" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Registrar Feedback de Entrevista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formFeedback" method="POST">
+                <div class="modal-body">
+                    <div id="infoEntrevistaFeedback" class="alert alert-info mb-3">
+                        <!-- La información de la entrevista se cargará aquí -->
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="puntaje" class="form-label">Puntaje (0-100) *</label>
+                                <input type="number" class="form-control" id="puntaje" name="puntaje" 
+                                       min="0" max="100" step="1" required>
+                                <div class="form-text">Calificación general del candidato en la entrevista.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_estadoentrevista" class="form-label">Estado Final</label>
+                                <select class="form-control" id="id_estadoentrevista_feedback" name="id_estadoentrevista">
+                                    {% for estado in estados_entrevista %}
+                                    {% if estado.id_estadoentrevista in [3, 4, 5] %}
+                                    <option value="{{ estado.id_estadoentrevista }}" {% if estado.id_estadoentrevista == 3 %}selected{% endif %}>
+                                        {{ estado.nom_estado }}
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="comentarios" class="form-label">Comentarios y Observaciones *</label>
+                        <textarea class="form-control" id="comentarios" name="comentarios" rows="5" 
+                                  placeholder="Describa el desempeño del candidato, fortalezas, áreas de mejora, recomendaciones, etc." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Recomendación</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recomendacion" id="recomendacion_avanzar" value="avanzar" checked>
+                            <label class="form-check-label text-success" for="recomendacion_avanzar">
+                                <i class="fas fa-thumbs-up me-1"></i>Recomendado para avanzar
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recomendacion" id="recomendacion_considerar" value="considerar">
+                            <label class="form-check-label text-warning" for="recomendacion_considerar">
+                                <i class="fas fa-minus-circle me-1"></i>Considerar con reservas
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recomendacion" id="recomendacion_rechazar" value="rechazar">
+                            <label class="form-check-label text-danger" for="recomendacion_rechazar">
+                                <i class="fas fa-thumbs-down me-1"></i>No recomendado
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-1"></i>Guardar Feedback
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="modalConfirmarEliminacion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar esta entrevista?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Advertencia:</strong> Esta acción no se puede deshacer y se perderán todos los datos de la entrevista.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formEliminarEntrevista" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Eliminar Entrevista
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles -->
+<div class="modal fade" id="modalDetallesEntrevista" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles de la Entrevista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detallesEntrevista">
+                <!-- Los detalles se cargarán via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Configurar fecha mínima para hoy
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha_entrevista').min = today;
+    document.getElementById('filtroFecha').value = today;
+});
+
+// Función para limpiar el formulario
+function limpiarFormulario() {
+    document.getElementById('formEntrevista').reset();
+    document.getElementById('modalEntrevistaLabel').textContent = 'Programar Nueva Entrevista';
+    document.getElementById('formEntrevista').action = "{{ url_for('crear_entrevista') }}";
+    document.getElementById('infoPostulacion').style.display = 'none';
+    
+    // Restablecer fecha mínima a hoy
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha_entrevista').min = today;
+    document.getElementById('fecha_entrevista').value = today;
+}
+
+// Función para cargar información de la postulación seleccionada
+document.getElementById('id_postulacion').addEventListener('change', function() {
+    const postulacionId = this.value;
+    const infoDiv = document.getElementById('infoPostulacion');
+    const detallesDiv = document.getElementById('detallesPostulacion');
+    
+    if (postulacionId) {
+        // Buscar la postulación seleccionada en los datos disponibles
+        const postulaciones = {{ postulaciones|tojson }};
+        const postulacion = postulaciones.find(p => p.id_postulacion == postulacionId);
+        
+        if (postulacion) {
+            detallesDiv.innerHTML = `
+                <strong>Candidato:</strong> ${postulacion.nom_candidato}<br>
+                <strong>Vacante:</strong> ${postulacion.titulo_vacante}<br>
+                <strong>Descripción:</strong> ${postulacion.descripcion}
+            `;
+            infoDiv.style.display = 'block';
+        }
+    } else {
+        infoDiv.style.display = 'none';
+    }
+});
+
+// Función para editar entrevista
+function editarEntrevista(idEntrevista) {
+    window.location.href = `/entrevistas/editar/${idEntrevista}`;
+}
+
+// Función para registrar feedback
+function registrarFeedback(idEntrevista) {
+    fetch(`/api/entrevistas/${idEntrevista}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const entrevista = data.entrevista;
+                
+                // Configurar el formulario
+                document.getElementById('formFeedback').action = `/entrevistas/feedback/${idEntrevista}`;
+                
+                // Mostrar información de la entrevista
+                document.getElementById('infoEntrevistaFeedback').innerHTML = `
+                    <h6>Información de la Entrevista:</h6>
+                    <strong>Candidato:</strong> ${entrevista.nom_candidato}<br>
+                    <strong>Vacante:</strong> ${entrevista.titulo_vacante}<br>
+                    <strong>Entrevistador:</strong> ${entrevista.nom_entrevistador}<br>
+                    <strong>Fecha:</strong> ${entrevista.fecha_sola} ${entrevista.hora_sola}
+                `;
+                
+                // Mostrar el modal
+                const modal = new bootstrap.Modal(document.getElementById('modalFeedback'));
+                modal.show();
+            } else {
+                alert('Error al cargar los detalles de la entrevista');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles de la entrevista');
+        });
+}
+
+// Función para ver detalles de la entrevista
+function verDetalles(idEntrevista) {
+    fetch(`/api/entrevistas/${idEntrevista}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const entrevista = data.entrevista;
+                const detallesHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Información del Candidato</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Nombre:</strong> ${entrevista.nom_candidato}</li>
+                                <li><strong>Email:</strong> ${entrevista.email_candidato}</li>
+                                <li><strong>Teléfono:</strong> ${entrevista.telefono_candidato || 'No especificado'}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información de la Vacante</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Título:</strong> ${entrevista.titulo_vacante}</li>
+                                <li><strong>Departamento:</strong> ${entrevista.nom_departamento || 'No especificado'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Información de la Entrevista</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>ID:</strong> ${entrevista.id_entrevista}</li>
+                                <li><strong>Fecha y Hora:</strong> ${entrevista.fecha_sola} ${entrevista.hora_sola}</li>
+                                <li><strong>Estado:</strong> <span class="badge bg-primary">${entrevista.estado_entrevista}</span></li>
+                                <li><strong>Puntaje:</strong> ${entrevista.puntaje ? `<span class="badge bg-${entrevista.puntaje < 60 ? 'danger' : entrevista.puntaje < 80 ? 'warning' : 'success'}">${entrevista.puntaje}</span>` : 'Sin calificar'}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información del Entrevistador</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Nombre:</strong> ${entrevista.nom_entrevistador}</li>
+                                <li><strong>Email:</strong> ${entrevista.email_entrevistador || 'No especificado'}</li>
+                                <li><strong>Teléfono:</strong> ${entrevista.telefono_entrevistador || 'No especificado'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    ${entrevista.notas ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Notas de la Entrevista</h6>
+                            <div class="alert alert-info">
+                                ${entrevista.notas}
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${entrevista.comentarios ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Comentarios y Feedback</h6>
+                            <div class="alert alert-${entrevista.puntaje < 60 ? 'danger' : entrevista.puntaje < 80 ? 'warning' : 'success'}">
+                                ${entrevista.comentarios}
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('detallesEntrevista').innerHTML = detallesHTML;
+                const modal = new bootstrap.Modal(document.getElementById('modalDetallesEntrevista'));
+                modal.show();
+            } else {
+                alert('Error al cargar los detalles de la entrevista');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles de la entrevista');
+        });
+}
+
+// Función para confirmar eliminación
+function confirmarEliminacion(idEntrevista) {
+    document.getElementById('formEliminarEntrevista').action = `/entrevistas/eliminar/${idEntrevista}`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
+    modal.show();
+}
+
+// Función para filtrar entrevistas
+function filtrarEntrevistas() {
+    const busqueda = document.getElementById('busquedaEntrevistas').value.toLowerCase();
+    const filtroEstado = document.getElementById('filtroEstado').value;
+    const filtroEntrevistador = document.getElementById('filtroEntrevistador').value;
+    const filtroFecha = document.getElementById('filtroFecha').value;
+    const filas = document.querySelectorAll('#tablaEntrevistas tbody tr');
+    
+    filas.forEach(fila => {
+        const textoFila = fila.textContent.toLowerCase();
+        const estadoId = fila.getAttribute('data-estado-id');
+        const entrevistadorId = fila.getAttribute('data-entrevistador-id');
+        const fecha = fila.getAttribute('data-fecha');
+        
+        const coincideBusqueda = textoFila.includes(busqueda);
+        const coincideEstado = !filtroEstado || estadoId === filtroEstado;
+        const coincideEntrevistador = !filtroEntrevistador || entrevistadorId === filtroEntrevistador;
+        const coincideFecha = !filtroFecha || fecha === filtroFecha;
+        
+        if (coincideBusqueda && coincideEstado && coincideEntrevistador && coincideFecha) {
+            fila.style.display = '';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+}
+
+// Función para exportar entrevistas
+function exportarEntrevistas() {
+    // En una implementación real, aquí se generaría un CSV o Excel
+    alert('Funcionalidad de exportación en desarrollo');
+}
+
+// Función para recargar la tabla
+function recargarTabla() {
+    window.location.reload();
+}
+
+// Validación del formulario de entrevista
+document.getElementById('formEntrevista').addEventListener('submit', function(e) {
+    const fechaEntrevista = document.getElementById('fecha_entrevista').value;
+    const horaEntrevista = document.getElementById('hora_entrevista').value;
+    const postulacion = document.getElementById('id_postulacion').value;
+    const entrevistador = document.getElementById('id_entrevistador').value;
+    
+    // Validación básica
+    if (!fechaEntrevista || !horaEntrevista || !postulacion || !entrevistador) {
+        e.preventDefault();
+        alert('Por favor, complete todos los campos obligatorios');
+        return;
+    }
+    
+    // Validar que la fecha no sea en el pasado
+    const fechaSeleccionada = new Date(fechaEntrevista + 'T' + horaEntrevista);
+    const ahora = new Date();
+    
+    if (fechaSeleccionada < ahora) {
+        e.preventDefault();
+        alert('No puede programar una entrevista en una fecha/hora pasada');
+        return;
+    }
+});
+
+// Validación del formulario de feedback
+document.getElementById('formFeedback').addEventListener('submit', function(e) {
+    const puntaje = document.getElementById('puntaje').value;
+    const comentarios = document.getElementById('comentarios').value;
+    
+    // Validación básica
+    if (!puntaje || !comentarios) {
+        e.preventDefault();
+        alert('Por favor, complete todos los campos obligatorios');
+        return;
+    }
+    
+    // Validar rango del puntaje
+    if (puntaje < 0 || puntaje > 100) {
+        e.preventDefault();
+        alert('El puntaje debe estar entre 0 y 100');
+        return;
+    }
+});
+
+// Búsqueda en tiempo real
+document.getElementById('busquedaEntrevistas').addEventListener('input', filtrarEntrevistas);
+
+// Filtros en tiempo real
+document.getElementById('filtroEstado').addEventListener('change', filtrarEntrevistas);
+document.getElementById('filtroEntrevistador').addEventListener('change', filtrarEntrevistas);
+document.getElementById('filtroFecha').addEventListener('change', filtrarEntrevistas);
+</script>
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.avatar-circle-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+/* Estilos para la tabla responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+        border-radius: 0.25rem;
+    }
+    
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+    }
+    
+    .avatar-circle-sm {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Estilos para las tarjetas de estadísticas */
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}

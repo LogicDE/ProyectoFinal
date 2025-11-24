@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Ofertas - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-contract me-2"></i>Gestión de Ofertas</h2>
+    <div>
+        <a href="{{ url_for('dashboard_ofertas') }}" class="btn btn-info me-2">
+            <i class="fas fa-chart-bar me-1"></i>Dashboard
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalOferta" onclick="limpiarFormulario()">
+            <i class="fas fa-plus me-1"></i>Emitir Nueva Oferta
+        </button>
+    </div>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Buscar ofertas..." id="busquedaOfertas">
+                    <button class="btn btn-outline-secondary" type="button" onclick="filtrarOfertas()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" id="filtroEstado">
+                    <option value="">Todos los estados</option>
+                    {% for estado in estados_oferta %}
+                    <option value="{{ estado.id_estadoferta }}">{{ estado.nom_estado }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" id="filtroVacante">
+                    <option value="">Todas las vacantes</option>
+                    {% for postulacion in postulaciones %}
+                    <option value="{{ postulacion.titulo_vacante }}">{{ postulacion.titulo_vacante }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-info" onclick="exportarOfertas()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="recargarTabla()">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tarjetas de Resumen -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-uppercase small">Total Ofertas</div>
+                        <div class="h4">{{ ofertas|length }}</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-contract fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-uppercase small">Aceptadas</div>
+                        <div class="h4">{{ ofertas|selectattr('id_estadoferta', 'equalto', 2)|list|length }}</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-uppercase small">Pendientes</div>
+                        <div class="h4">{{ ofertas|selectattr('id_estadoferta', 'equalto', 1)|list|length }}</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-uppercase small">Rechazadas</div>
+                        <div class="h4">{{ ofertas|selectattr('id_estadoferta', 'equalto', 3)|list|length }}</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-times-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Ofertas -->
+<div class="card shadow">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Ofertas</h6>
+        <span class="badge bg-primary">{{ ofertas|length }} ofertas</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="tablaOfertas">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Candidato</th>
+                        <th>Vacante</th>
+                        <th>Monto Oferta</th>
+                        <th>Estado</th>
+                        <th>Fecha Emisión</th>
+                        <th>Fecha Decisión</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for oferta in ofertas %}
+                    <tr data-oferta-id="{{ oferta.id_oferta }}" data-estado-id="{{ oferta.id_estadoferta }}" data-vacante="{{ oferta.titulo_vacante }}">
+                        <td>{{ oferta.id_oferta }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle bg-info text-white me-2">
+                                    {{ oferta.nom_candidato[0]|upper }}
+                                </div>
+                                <div>
+                                    <strong>{{ oferta.nom_candidato }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ oferta.email }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <strong>{{ oferta.titulo_vacante }}</strong>
+                            <br>
+                            <small class="text-muted">{{ oferta.nom_departamento }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-success fs-6">
+                                ${{ "{:,.2f}".format(oferta.monto_oferta) }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if oferta.id_estadoferta == 1 %}
+                                <span class="badge bg-warning">Pendiente</span>
+                            {% elif oferta.id_estadoferta == 2 %}
+                                <span class="badge bg-success">Aceptada</span>
+                            {% elif oferta.id_estadoferta == 3 %}
+                                <span class="badge bg-danger">Rechazada</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ oferta.estado_oferta }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ oferta.fecha_emision.strftime('%d/%m/%Y') if oferta.fecha_emision else 'N/A' }}</td>
+                        <td>{{ oferta.fecha_decision.strftime('%d/%m/%Y') if oferta.fecha_decision else 'Pendiente' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if oferta.id_estadoferta == 1 %}
+                                <button class="btn btn-outline-success" 
+                                        onclick="decidirOferta({{ oferta.id_oferta }}, 2, '{{ oferta.nom_candidato }}')"
+                                        data-bs-toggle="tooltip" title="Marcar como Aceptada">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="decidirOferta({{ oferta.id_oferta }}, 3, '{{ oferta.nom_candidato }}')"
+                                        data-bs-toggle="tooltip" title="Marcar como Rechazada">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                                <a href="{{ url_for('editar_oferta', id=oferta.id_oferta) }}" 
+                                   class="btn btn-outline-warning" 
+                                   data-bs-toggle="tooltip" title="Editar oferta">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn btn-outline-info" 
+                                        onclick="verDetalles({{ oferta.id_oferta }})"
+                                        data-bs-toggle="tooltip" title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                {% if oferta.id_estadoferta != 2 and oferta.id_estadoferta != 3 %}
+                                <button class="btn btn-outline-danger" 
+                                        onclick="confirmarEliminacion({{ oferta.id_oferta }}, '{{ oferta.nom_candidato }}')"
+                                        data-bs-toggle="tooltip" title="Eliminar oferta">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Mensaje si no hay ofertas -->
+        {% if not ofertas %}
+        <div class="text-center py-4">
+            <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No hay ofertas registradas</h5>
+            <p class="text-muted">Comienza emitiendo la primera oferta a un candidato finalista.</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalOferta">
+                <i class="fas fa-plus me-1"></i>Emitir Primera Oferta
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para Emitir Oferta -->
+<div class="modal fade" id="modalOferta" tabindex="-1" aria-labelledby="modalOfertaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalOfertaLabel">Emitir Nueva Oferta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formOferta" method="POST" action="{{ url_for('emitir_oferta') }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Solo se pueden emitir ofertas a candidatos en etapa finalista (Etapa 5).
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_postulacion" class="form-label">Postulación *</label>
+                                <select class="form-control" id="id_postulacion" name="id_postulacion" required>
+                                    <option value="">Seleccionar postulación...</option>
+                                    {% for postulacion in postulaciones %}
+                                    <option value="{{ postulacion.id_postulacion }}" 
+                                            data-candidato="{{ postulacion.nom_candidato }}"
+                                            data-vacante="{{ postulacion.titulo_vacante }}"
+                                            data-etapa="{{ postulacion.etapa_actual }}">
+                                        {{ postulacion.nom_candidato }} - {{ postulacion.titulo_vacante }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Seleccione la postulación del candidato finalista.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_estadoferta" class="form-label">Estado Inicial *</label>
+                                <select class="form-control" id="id_estadoferta" name="id_estadoferta" required>
+                                    {% for estado in estados_oferta %}
+                                    <option value="{{ estado.id_estadoferta }}" 
+                                            {% if estado.id_estadoferta == 1 %}selected{% endif %}>
+                                        {{ estado.nom_estado }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="monto_oferta" class="form-label">Monto de la Oferta *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="monto_oferta" name="monto_oferta" 
+                                           step="0.01" min="0" required placeholder="0.00">
+                                </div>
+                                <div class="form-text">Ingrese el monto de la oferta salarial.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="notas" class="form-label">Notas Adicionales</label>
+                                <textarea class="form-control" id="notas" name="notas" rows="3" 
+                                          placeholder="Observaciones o condiciones especiales de la oferta..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Información de la postulación seleccionada -->
+                    <div class="card mt-3" id="infoPostulacion" style="display: none;">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Información de la Postulación Seleccionada</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Candidato:</strong> <span id="infoCandidato">-</span><br>
+                                    <strong>Etapa Actual:</strong> <span id="infoEtapa">-</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Vacante:</strong> <span id="infoVacante">-</span><br>
+                                    <strong>Postulación ID:</strong> <span id="infoPostulacionId">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i>Emitir Oferta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Decidir Oferta -->
+<div class="modal fade" id="modalDecidirOferta" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Registrar Decisión de Oferta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="textoDecision">¿Está seguro que desea marcar esta oferta como <span id="estadoDecision"></span>?</p>
+                <div class="alert alert-warning" id="alertaDecision">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Importante:</strong> Esta acción no se puede deshacer.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formDecidirOferta" method="POST" style="display: inline;">
+                    <input type="hidden" name="id_estadoferta" id="inputEstadoOferta">
+                    <button type="submit" class="btn" id="botonDecision">
+                        <i class="fas fa-check me-1"></i>Confirmar Decisión
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Confirmar Eliminación -->
+<div class="modal fade" id="modalConfirmarEliminacion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="textoEliminacion">¿Está seguro que desea eliminar esta oferta?</p>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Advertencia:</strong> Esta acción no se puede deshacer.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formEliminarOferta" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Eliminar Oferta
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles -->
+<div class="modal fade" id="modalDetallesOferta" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles de la Oferta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detallesOferta">
+                <!-- Los detalles se cargarán via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+
+// Función para limpiar el formulario
+function limpiarFormulario() {
+    document.getElementById('formOferta').reset();
+    document.getElementById('modalOfertaLabel').textContent = 'Emitir Nueva Oferta';
+    document.getElementById('formOferta').action = "{{ url_for('emitir_oferta') }}";
+    document.getElementById('infoPostulacion').style.display = 'none';
+}
+
+// Función para mostrar información de la postulación seleccionada
+document.getElementById('id_postulacion').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const infoPostulacion = document.getElementById('infoPostulacion');
+    
+    if (this.value) {
+        document.getElementById('infoCandidato').textContent = selectedOption.getAttribute('data-candidato');
+        document.getElementById('infoVacante').textContent = selectedOption.getAttribute('data-vacante');
+        document.getElementById('infoEtapa').textContent = selectedOption.getAttribute('data-etapa');
+        document.getElementById('infoPostulacionId').textContent = this.value;
+        infoPostulacion.style.display = 'block';
+    } else {
+        infoPostulacion.style.display = 'none';
+    }
+});
+
+// Función para decidir sobre una oferta
+function decidirOferta(idOferta, estado, nombreCandidato) {
+    const estadoTexto = estado === 2 ? 'ACEPTADA' : 'RECHAZADA';
+    const claseBoton = estado === 2 ? 'btn-success' : 'btn-danger';
+    
+    document.getElementById('textoDecision').innerHTML = 
+        `¿Está seguro que desea marcar la oferta para <strong>${nombreCandidato}</strong> como <span class="badge ${estado === 2 ? 'bg-success' : 'bg-danger'}">${estadoTexto}</span>?`;
+    document.getElementById('estadoDecision').textContent = estadoTexto.toLowerCase();
+    document.getElementById('inputEstadoOferta').value = estado;
+    document.getElementById('formDecidirOferta').action = `/ofertas/decidir/${idOferta}`;
+    document.getElementById('botonDecision').className = `btn ${claseBoton}`;
+    
+    // Actualizar alerta según el estado
+    const alerta = document.getElementById('alertaDecision');
+    if (estado === 2) {
+        alerta.className = 'alert alert-success';
+        alerta.innerHTML = '<i class="fas fa-check-circle"></i> <strong>¡Excelente!</strong> El candidato ha aceptado la oferta.';
+    } else {
+        alerta.className = 'alert alert-danger';
+        alerta.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>Atención:</strong> El candidato ha rechazado la oferta.';
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalDecidirOferta'));
+    modal.show();
+}
+
+// Función para confirmar eliminación
+function confirmarEliminacion(idOferta, nombreCandidato) {
+    document.getElementById('textoEliminacion').innerHTML = 
+        `¿Está seguro que desea eliminar la oferta para <strong>${nombreCandidato}</strong>?`;
+    document.getElementById('formEliminarOferta').action = `/ofertas/eliminar/${idOferta}`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
+    modal.show();
+}
+
+// Función para ver detalles de la oferta
+function verDetalles(idOferta) {
+    fetch(`/api/ofertas/${idOferta}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Oferta no encontrada');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const oferta = data.oferta;
+                const detallesHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Información de la Oferta</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>ID Oferta:</strong> ${oferta.id_oferta}</li>
+                                <li><strong>Monto:</strong> <span class="badge bg-success fs-6">$${parseFloat(oferta.monto_oferta).toLocaleString('es-ES', {minimumFractionDigits: 2})}</span></li>
+                                <li><strong>Estado:</strong> ${getBadgeEstado(oferta.id_estadoferta, oferta.estado_oferta)}</li>
+                                <li><strong>Fecha Emisión:</strong> ${formatearFecha(oferta.fecha_emision)}</li>
+                                <li><strong>Fecha Decisión:</strong> ${formatearFecha(oferta.fecha_decision)}</li>
+                                <li><strong>Etapa Actual:</strong> ${oferta.etapa_actual}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información del Candidato</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Nombre:</strong> ${oferta.nom_candidato}</li>
+                                <li><strong>Email:</strong> ${oferta.email}</li>
+                                <li><strong>Teléfono:</strong> ${oferta.telefono || 'No disponible'}</li>
+                                <li><strong>Postulación ID:</strong> ${oferta.id_postulacion}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Información de la Vacante</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Título:</strong> ${oferta.titulo_vacante}</li>
+                                <li><strong>Departamento:</strong> ${oferta.nom_departamento || 'No especificado'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    ${oferta.notas ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Notas Adicionales</h6>
+                            <div class="card">
+                                <div class="card-body">
+                                    ${oferta.notas}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('detallesOferta').innerHTML = detallesHTML;
+                const modal = new bootstrap.Modal(document.getElementById('modalDetallesOferta'));
+                modal.show();
+            } else {
+                alert('Error al cargar los detalles de la oferta');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles de la oferta');
+        });
+}
+
+// Función auxiliar para formatear fecha
+function formatearFecha(fechaString) {
+    if (!fechaString) return 'Pendiente';
+    const fecha = new Date(fechaString);
+    return fecha.toLocaleDateString('es-ES');
+}
+
+// Función auxiliar para obtener badge de estado
+function getBadgeEstado(idEstado, textoEstado) {
+    const estados = {
+        1: 'warning',
+        2: 'success', 
+        3: 'danger'
+    };
+    const color = estados[idEstado] || 'secondary';
+    return `<span class="badge bg-${color}">${textoEstado}</span>`;
+}
+
+// Función para filtrar ofertas
+function filtrarOfertas() {
+    const busqueda = document.getElementById('busquedaOfertas').value.toLowerCase();
+    const filtroEstado = document.getElementById('filtroEstado').value;
+    const filtroVacante = document.getElementById('filtroVacante').value;
+    const filas = document.querySelectorAll('#tablaOfertas tbody tr');
+    
+    filas.forEach(fila => {
+        const textoFila = fila.textContent.toLowerCase();
+        const estadoId = fila.getAttribute('data-estado-id');
+        const vacante = fila.getAttribute('data-vacante').toLowerCase();
+        
+        const coincideBusqueda = textoFila.includes(busqueda);
+        const coincideEstado = !filtroEstado || estadoId === filtroEstado;
+        const coincideVacante = !filtroVacante || vacante.includes(filtroVacante.toLowerCase());
+        
+        if (coincideBusqueda && coincideEstado && coincideVacante) {
+            fila.style.display = '';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+}
+
+// Función para exportar ofertas
+function exportarOfertas() {
+    // En una implementación real, aquí se generaría un CSV o Excel
+    alert('Funcionalidad de exportación en desarrollo');
+}
+
+// Función para recargar la tabla
+function recargarTabla() {
+    window.location.reload();
+}
+
+// Validación del formulario
+document.getElementById('formOferta').addEventListener('submit', function(e) {
+    const monto = parseFloat(document.getElementById('monto_oferta').value);
+    
+    // Validar que el monto sea positivo
+    if (monto <= 0) {
+        e.preventDefault();
+        alert('El monto de la oferta debe ser mayor a cero');
+        return;
+    }
+    
+    // Validar que se haya seleccionado una postulación
+    const postulacion = document.getElementById('id_postulacion').value;
+    if (!postulacion) {
+        e.preventDefault();
+        alert('Debe seleccionar una postulación');
+        return;
+    }
+});
+
+// Búsqueda en tiempo real
+document.getElementById('busquedaOfertas').addEventListener('input', filtrarOfertas);
+
+// Filtros en tiempo real
+document.getElementById('filtroEstado').addEventListener('change', filtrarOfertas);
+document.getElementById('filtroVacante').addEventListener('change', filtrarOfertas);
+</script>
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+/* Estilos para las tarjetas de resumen */
+.card .h4 {
+    margin-bottom: 0;
+}
+
+/* Estilos para la tabla responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+        border-radius: 0.25rem;
+    }
+    
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+    }
+    
+    /* Ocultar algunas columnas en móvil */
+    .table-responsive th:nth-child(6),
+    .table-responsive td:nth-child(6),
+    .table-responsive th:nth-child(7),
+    .table-responsive td:nth-child(7) {
+        display: none;
+    }
+}
+</style>
+{% endblock %}
