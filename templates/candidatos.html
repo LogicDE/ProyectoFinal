@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Candidatos - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-users me-2"></i>Gestión de Candidatos</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCandidato" onclick="limpiarFormulario()">
+        <i class="fas fa-plus me-1"></i>Nuevo Candidato
+    </button>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Buscar candidatos..." id="busquedaCandidatos">
+                    <button class="btn btn-outline-secondary" type="button" onclick="filtrarCandidatos()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-info" onclick="exportarCandidatos()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="recargarTabla()">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Candidatos -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Candidatos</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="tablaCandidatos">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Identificación</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Fecha Aplicación</th>
+                        <th>Fuente</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for candidato in candidatos %}
+                    <tr data-candidato-id="{{ candidato.id_candidato }}">
+                        <td>{{ candidato.id_candidato }}</td>
+                        <td>
+                            <strong>{{ candidato.identificacion }}</strong>
+                        </td>
+                        <td>{{ candidato.nom_candidato }}</td>
+                        <td>
+                            <a href="mailto:{{ candidato.email }}" class="text-decoration-none">
+                                <i class="fas fa-envelope me-1"></i>{{ candidato.email }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if candidato.telefono %}
+                            <a href="tel:{{ candidato.telefono }}" class="text-decoration-none">
+                                <i class="fas fa-phone me-1"></i>{{ candidato.telefono }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ candidato.fecha_aplicacion }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ candidato.nom_fuente or 'No especificada' }}</span>
+                        </td>
+                        <td>
+                            {% set tiene_postulaciones = candidato.id_candidato in [1, 2, 6] %}
+                            <span class="badge bg-{{ 'success' if tiene_postulaciones else 'warning' }}">
+                                {{ 'Con postulaciones' if tiene_postulaciones else 'Sin postulaciones' }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" 
+                                        onclick="editarCandidato({{ candidato.id_candidato }})"
+                                        data-bs-toggle="tooltip" title="Editar candidato">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-info" 
+                                        onclick="verDetalles({{ candidato.id_candidato }})"
+                                        data-bs-toggle="tooltip" title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="confirmarEliminacion({{ candidato.id_candidato }}, '{{ candidato.nom_candidato }}')"
+                                        data-bs-toggle="tooltip" title="Eliminar candidato">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted">
+                Mostrando <strong>{{ candidatos|length }}</strong> candidatos
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item disabled"><a class="page-link" href="#">Anterior</a></li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item"><a class="page-link" href="#">Siguiente</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Nuevo Candidato -->
+<div class="modal fade" id="modalCandidato" tabindex="-1" aria-labelledby="modalCandidatoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCandidatoLabel">Nuevo Candidato</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formCandidato" method="POST" action="{{ url_for('crear_candidato') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="identificacion" class="form-label">Identificación *</label>
+                                <input type="text" class="form-control" id="identificacion" name="identificacion" required>
+                                <div class="form-text">Número único de identificación</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label">Nombre Completo *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                                <div class="form-text">El email debe ser único para cada candidato</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="text" class="form-control" id="telefono" name="telefono" placeholder="Ej: 8123456789">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_fuente" class="form-label">Fuente de Reclutamiento</label>
+                                <select class="form-control" id="id_fuente" name="id_fuente">
+                                    <option value="">Seleccionar fuente...</option>
+                                    {% for fuente in fuentes %}
+                                    <option value="{{ fuente.id_fuente }}">{{ fuente.nom_fuente }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha de Aplicación</label>
+                                <input type="text" class="form-control" value="{{ now.strftime('%Y-%m-%d') if now else '2024-01-15' }}" readonly>
+                                <div class="form-text">Se asignará automáticamente</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Guardar Candidato
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="modalConfirmarEliminacion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar al candidato <strong id="nombreCandidatoEliminar"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Advertencia:</strong> Esta acción no se puede deshacer. Se eliminarán todos los datos del candidato.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formEliminarCandidato" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Eliminar Candidato
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles -->
+<div class="modal fade" id="modalDetallesCandidato" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Candidato</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detallesCandidato">
+                <!-- Los detalles se cargarán via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+
+// Función para limpiar el formulario
+function limpiarFormulario() {
+    document.getElementById('formCandidato').reset();
+    document.getElementById('modalCandidatoLabel').textContent = 'Nuevo Candidato';
+    document.getElementById('formCandidato').action = "{{ url_for('crear_candidato') }}";
+}
+
+// Función para editar candidato
+function editarCandidato(idCandidato) {
+    window.location.href = "{{ url_for('editar_candidato', id=0) }}".replace('0', idCandidato);
+}
+
+// Función para ver detalles del candidato
+function verDetalles(idCandidato) {
+    fetch(`/api/candidatos/${idCandidato}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const candidato = data.candidato;
+                const detallesHTML = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center mb-3">
+                                <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                    <i class="fas fa-user text-white" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <h4>${candidato.nom_candidato}</h4>
+                            <p class="text-muted">${candidato.identificacion}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Información de Contacto</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Email:</strong> ${candidato.email}</li>
+                                <li><strong>Teléfono:</strong> ${candidato.telefono || 'No especificado'}</li>
+                                <li><strong>Fuente:</strong> ${candidato.nom_fuente || 'No especificada'}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información del Sistema</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>ID:</strong> ${candidato.id_candidato}</li>
+                                <li><strong>Fecha de Aplicación:</strong> ${candidato.fecha_aplicacion}</li>
+                                <li><strong>Estado:</strong> <span class="badge bg-success">Activo</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6>Postulaciones Recientes</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Vacante</th>
+                                        <th>Fecha</th>
+                                        <th>Etapa</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Vacante Actualizada</td>
+                                        <td>2024-01-15</td>
+                                        <td><span class="badge bg-success">Contratado</span></td>
+                                        <td>Completado</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('detallesCandidato').innerHTML = detallesHTML;
+                const modal = new bootstrap.Modal(document.getElementById('modalDetallesCandidato'));
+                modal.show();
+            } else {
+                alert('Error al cargar los detalles del candidato');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles del candidato');
+        });
+}
+
+// Función para confirmar eliminación
+function confirmarEliminacion(idCandidato, nombreCandidato) {
+    document.getElementById('nombreCandidatoEliminar').textContent = nombreCandidato;
+    document.getElementById('formEliminarCandidato').action = "{{ url_for('eliminar_candidato', id=0) }}".replace('0', idCandidato);
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
+    modal.show();
+}
+
+// Función para filtrar candidatos
+function filtrarCandidatos() {
+    const busqueda = document.getElementById('busquedaCandidatos').value.toLowerCase();
+    const filas = document.querySelectorAll('#tablaCandidatos tbody tr');
+    
+    filas.forEach(fila => {
+        const textoFila = fila.textContent.toLowerCase();
+        if (textoFila.includes(busqueda)) {
+            fila.style.display = '';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+}
+
+// Función para exportar candidatos
+function exportarCandidatos() {
+    // En una implementación real, aquí se generaría un CSV o Excel
+    alert('Funcionalidad de exportación en desarrollo');
+}
+
+// Función para recargar la tabla
+function recargarTabla() {
+    window.location.reload();
+}
+
+// Validación del formulario
+document.getElementById('formCandidato').addEventListener('submit', function(e) {
+    const email = document.getElementById('email').value;
+    const telefono = document.getElementById('telefono').value;
+    
+    // Validación básica de email
+    if (!email.includes('@')) {
+        e.preventDefault();
+        alert('Por favor, ingrese un email válido');
+        return;
+    }
+    
+    // Validación de teléfono (opcional)
+    if (telefono && !/^\d+$/.test(telefono)) {
+        e.preventDefault();
+        alert('El teléfono debe contener solo números');
+        return;
+    }
+});
+
+// Búsqueda en tiempo real
+document.getElementById('busquedaCandidatos').addEventListener('input', filtrarCandidatos);
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+    cursor: pointer;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+/* Estilos para la tabla responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+        border-radius: 0.25rem;
+    }
+}
+</style>
+{% endblock %}

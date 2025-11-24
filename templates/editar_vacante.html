@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Vacante - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-edit me-2"></i>Editar Vacante
+                    </h6>
+                    <a href="{{ url_for('vacantes') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Volver
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('editar_vacante', id=vacante.id_vacante) }}">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="titulo_vacante" class="form-label">Título de la Vacante *</label>
+                                <input type="text" class="form-control" id="titulo_vacante" name="titulo_vacante" 
+                                       value="{{ vacante.titulo_vacante }}" required>
+                                <div class="form-text">Nombre descriptivo para la vacante</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="id_departamento" class="form-label">Departamento</label>
+                                <select class="form-control" id="id_departamento" name="id_departamento">
+                                    <option value="">Seleccionar departamento...</option>
+                                    {% for departamento in departamentos %}
+                                    <option value="{{ departamento.id_departamento }}" 
+                                            {% if vacante.id_departamento == departamento.id_departamento %}selected{% endif %}>
+                                        {{ departamento.nom_departamento }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label for="desc_vacante" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="desc_vacante" name="desc_vacante" rows="5">{{ vacante.desc_vacante or '' }}</textarea>
+                                <div class="form-text">Descripción detallada de la vacante</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_estadovacante" class="form-label">Estado</label>
+                                <select class="form-control" id="id_estadovacante" name="id_estadovacante">
+                                    <option value="">Seleccionar estado...</option>
+                                    {% for estado in estados_vacantes %}
+                                    <option value="{{ estado.id_estadovacante }}" 
+                                            {% if vacante.id_estadovacante == estado.id_estadovacante %}selected{% endif %}>
+                                        {{ estado.nom_estado }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha de Creación</label>
+                                <input type="text" class="form-control" value="{{ vacante.fecha_creacion }}" readonly>
+                                <div class="form-text">Fecha original de creación (no editable)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('vacantes') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i>Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>Actualizar Vacante
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Información adicional de la vacante -->
+        <div class="card shadow mt-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="fas fa-info-circle me-2"></i>Información Adicional
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Estadísticas</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>ID de la Vacante:</strong> {{ vacante.id_vacante }}</li>
+                            <li><strong>Postulaciones:</strong> 
+                                <span class="badge bg-primary">{{ vacante.num_postulaciones or 0 }}</span>
+                            </li>
+                            <li><strong>Time to Fill:</strong> 
+                                {% if vacante.time_to_fill %}
+                                <span class="badge bg-info">{{ vacante.time_to_fill }} días</span>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Acciones Rápidas</h6>
+                        <div class="d-grid gap-2">
+                            <a href="#" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-user-plus me-1"></i>Ver Postulaciones
+                            </a>
+                            <a href="#" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-chart-line me-1"></i>Ver Estadísticas
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Validación del formulario de edición
+document.querySelector('form').addEventListener('submit', function(e) {
+    const titulo = document.getElementById('titulo_vacante').value;
+    
+    // Validación básica de título
+    if (titulo.trim() === '') {
+        e.preventDefault();
+        alert('Por favor, ingrese un título para la vacante');
+        return;
+    }
+});
+</script>
+{% endblock %}

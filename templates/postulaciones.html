@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Postulaciones - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-alt me-2"></i>Gestión de Postulaciones</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalPostulacion" onclick="limpiarFormulario()">
+        <i class="fas fa-plus me-1"></i>Nueva Postulación
+    </button>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Buscar postulaciones..." id="busquedaPostulaciones">
+                    <button class="btn btn-outline-secondary" type="button" onclick="filtrarPostulaciones()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" id="filtroVacante">
+                    <option value="">Todas las vacantes</option>
+                    {% for vacante in vacantes %}
+                    <option value="{{ vacante.id_vacante }}">{{ vacante.titulo_vacante }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" id="filtroEtapa">
+                    <option value="">Todas las etapas</option>
+                    {% for etapa in etapas %}
+                    <option value="{{ etapa.id_etapa }}">{{ etapa.nom_etapa }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-info" onclick="exportarPostulaciones()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="recargarTabla()">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Postulaciones -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Postulaciones</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="tablaPostulaciones">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Candidato</th>
+                        <th>Vacante</th>
+                        <th>Fecha Postulación</th>
+                        <th>Etapa</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for postulacion in postulaciones %}
+                    <tr data-postulacion-id="{{ postulacion.id_postulacion }}">
+                        <td>{{ postulacion.id_postulacion }}</td>
+                        <td>
+                            <a href="#" onclick="verDetallesCandidato({{ postulacion.id_candidato }})" class="text-decoration-none">
+                                <i class="fas fa-user me-1"></i>{{ postulacion.nom_candidato }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="#" onclick="verDetallesVacante({{ postulacion.id_vacante }})" class="text-decoration-none">
+                                <i class="fas fa-briefcase me-1"></i>{{ postulacion.titulo_vacante }}
+                            </a>
+                        </td>
+                        <td>{{ postulacion.fecha_postula }}</td>
+                        <td>
+                            <span class="badge bg-{{ 
+                                'success' if postulacion.id_etapa >= 9 else 
+                                'warning' if postulacion.id_etapa >= 5 else 
+                                'info' if postulacion.id_etapa >= 3 else 
+                                'secondary' 
+                            }}">
+                                {{ postulacion.nom_etapa }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" 
+                                        onclick="editarPostulacion({{ postulacion.id_postulacion }})"
+                                        data-bs-toggle="tooltip" title="Mover a siguiente etapa">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                                <button class="btn btn-outline-info" 
+                                        onclick="verDetalles({{ postulacion.id_postulacion }})"
+                                        data-bs-toggle="tooltip" title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="confirmarEliminacion({{ postulacion.id_postulacion }})"
+                                        data-bs-toggle="tooltip" title="Eliminar postulación">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted">
+                Mostrando <strong>{{ postulaciones|length }}</strong> postulaciones
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item disabled"><a class="page-link" href="#">Anterior</a></li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item"><a class="page-link" href="#">Siguiente</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Nueva Postulación -->
+<div class="modal fade" id="modalPostulacion" tabindex="-1" aria-labelledby="modalPostulacionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalPostulacionLabel">Nueva Postulación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formPostulacion" method="POST" action="{{ url_for('crear_postulacion') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_candidato" class="form-label">Candidato *</label>
+                                <select class="form-control" id="id_candidato" name="id_candidato" required>
+                                    <option value="">Seleccionar candidato...</option>
+                                    {% for candidato in candidatos %}
+                                    <option value="{{ candidato.id_candidato }}">{{ candidato.nom_candidato }} ({{ candidato.email }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_vacante" class="form-label">Vacante *</label>
+                                <select class="form-control" id="id_vacante" name="id_vacante" required>
+                                    <option value="">Seleccionar vacante...</option>
+                                    {% for vacante in vacantes %}
+                                    <option value="{{ vacante.id_vacante }}">{{ vacante.titulo_vacante }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_etapa" class="form-label">Etapa Inicial</label>
+                                <select class="form-control" id="id_etapa" name="id_etapa">
+                                    <option value="">Seleccionar etapa...</option>
+                                    {% for etapa in etapas %}
+                                    <option value="{{ etapa.id_etapa }}" {% if etapa.id_etapa == 1 %}selected{% endif %}>{{ etapa.nom_etapa }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha de Postulación</label>
+                                <input type="text" class="form-control" value="{{ now.strftime('%Y-%m-%d') if now else '2024-01-15' }}" readonly>
+                                <div class="form-text">Se asignará automáticamente</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Guardar Postulación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Mover Etapa -->
+<div class="modal fade" id="modalMoverEtapa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mover a Siguiente Etapa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formMoverEtapa" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nueva_etapa" class="form-label">Nueva Etapa</label>
+                        <select class="form-control" id="nueva_etapa" name="nueva_etapa" required>
+                            <!-- Las opciones se cargarán dinámicamente con JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-arrow-right me-1"></i>Mover a Siguiente Etapa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="modalConfirmarEliminacion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar esta postulación?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Advertencia:</strong> Esta acción no se puede deshacer. Se eliminarán todos los datos de la postulación.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formEliminarPostulacion" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Eliminar Postulación
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles -->
+<div class="modal fade" id="modalDetallesPostulacion" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles de la Postulación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detallesPostulacion">
+                <!-- Los detalles se cargarán via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+
+// Función para limpiar el formulario
+function limpiarFormulario() {
+    document.getElementById('formPostulacion').reset();
+    document.getElementById('modalPostulacionLabel').textContent = 'Nueva Postulación';
+    document.getElementById('formPostulacion').action = "{{ url_for('crear_postulacion') }}";
+}
+
+// Función para editar postulación (mover a siguiente etapa)
+function editarPostulacion(idPostulacion) {
+    // Obtener información de la postulación actual
+    fetch(`/api/postulaciones/${idPostulacion}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const postulacion = data.postulacion;
+                
+                // Configurar el formulario
+                document.getElementById('formMoverEtapa').action = `/postulaciones/mover-etapa/${idPostulacion}`;
+                
+                // Cargar las etapas disponibles
+                fetch('/api/etapas')
+                    .then(response => response.json())
+                    .then(etapasData => {
+                        const selectEtapa = document.getElementById('nueva_etapa');
+                        selectEtapa.innerHTML = '';
+                        
+                        etapasData.etapas.forEach(etapa => {
+                            // Solo mostrar etapas posteriores a la actual
+                            if (etapa.id_etapa > postulacion.id_etapa) {
+                                const option = document.createElement('option');
+                                option.value = etapa.id_etapa;
+                                option.textContent = etapa.nom_etapa;
+                                selectEtapa.appendChild(option);
+                            }
+                        });
+                        
+                        // Mostrar el modal
+                        const modal = new bootstrap.Modal(document.getElementById('modalMoverEtapa'));
+                        modal.show();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error al cargar las etapas disponibles');
+                    });
+            } else {
+                alert('Error al cargar los detalles de la postulación');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles de la postulación');
+        });
+}
+
+// Función para ver detalles de la postulación
+function verDetalles(idPostulacion) {
+    fetch(`/api/postulaciones/${idPostulacion}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const postulacion = data.postulacion;
+                const detallesHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Información del Candidato</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Nombre:</strong> ${postulacion.nom_candidato}</li>
+                                <li><strong>Email:</strong> ${postulacion.email}</li>
+                                <li><strong>Teléfono:</strong> ${postulacion.telefono || 'No especificado'}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información de la Vacante</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Título:</strong> ${postulacion.titulo_vacante}</li>
+                                <li><strong>Departamento:</strong> ${postulacion.nom_departamento || 'No especificado'}</li>
+                                <li><strong>Estado:</strong> ${postulacion.nom_estado || 'No especificado'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Información de la Postulación</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>ID:</strong> ${postulacion.id_postulacion}</li>
+                                <li><strong>Fecha de Postulación:</strong> ${postulacion.fecha_postula}</li>
+                                <li><strong>Etapa Actual:</strong> <span class="badge bg-primary">${postulacion.nom_etapa}</span></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Historial de Cambios</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Etapa</th>
+                                            <th>Usuario</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>${postulacion.fecha_postula}</td>
+                                            <td><span class="badge bg-secondary">${postulacion.nom_etapa}</span></td>
+                                            <td>Sistema</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('detallesPostulacion').innerHTML = detallesHTML;
+                const modal = new bootstrap.Modal(document.getElementById('modalDetallesPostulacion'));
+                modal.show();
+            } else {
+                alert('Error al cargar los detalles de la postulación');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles de la postulación');
+        });
+}
+
+// Función para ver detalles del candidato
+function verDetallesCandidato(idCandidato) {
+    window.location.href = `/candidatos/detalles/${idCandidato}`;
+}
+
+// Función para ver detalles de la vacante
+function verDetallesVacante(idVacante) {
+    window.location.href = `/vacantes/detalles/${idVacante}`;
+}
+
+// Función para confirmar eliminación
+function confirmarEliminacion(idPostulacion) {
+    document.getElementById('formEliminarPostulacion').action = `/postulaciones/eliminar/${idPostulacion}`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
+    modal.show();
+}
+
+// Función para filtrar postulaciones
+function filtrarPostulaciones() {
+    const busqueda = document.getElementById('busquedaPostulaciones').value.toLowerCase();
+    const filtroVacante = document.getElementById('filtroVacante').value;
+    const filtroEtapa = document.getElementById('filtroEtapa').value;
+    const filas = document.querySelectorAll('#tablaPostulaciones tbody tr');
+    
+    filas.forEach(fila => {
+        const textoFila = fila.textContent.toLowerCase();
+        const vacanteId = fila.getAttribute('data-vacante-id');
+        const etapaId = fila.getAttribute('data-etapa-id');
+        
+        const coincideBusqueda = textoFila.includes(busqueda);
+        const coincideVacante = !filtroVacante || vacanteId === filtroVacante;
+        const coincideEtapa = !filtroEtapa || etapaId === filtroEtapa;
+        
+        if (coincideBusqueda && coincideVacante && coincideEtapa) {
+            fila.style.display = '';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+}
+
+// Función para exportar postulaciones
+function exportarPostulaciones() {
+    // En una implementación real, aquí se generaría un CSV o Excel
+    alert('Funcionalidad de exportación en desarrollo');
+}
+
+// Función para recargar la tabla
+function recargarTabla() {
+    window.location.reload();
+}
+
+// Validación del formulario
+document.getElementById('formPostulacion').addEventListener('submit', function(e) {
+    const idCandidato = document.getElementById('id_candidato').value;
+    const idVacante = document.getElementById('id_vacante').value;
+    
+    // Validación básica
+    if (!idCandidato || !idVacante) {
+        e.preventDefault();
+        alert('Por favor, seleccione un candidato y una vacante');
+        return;
+    }
+});
+
+// Validación del formulario de mover etapa
+document.getElementById('formMoverEtapa').addEventListener('submit', function(e) {
+    const nuevaEtapa = document.getElementById('nueva_etapa').value;
+    
+    // Validación básica
+    if (!nuevaEtapa) {
+        e.preventDefault();
+        alert('Por favor, seleccione una nueva etapa');
+        return;
+    }
+});
+
+// Búsqueda en tiempo real
+document.getElementById('busquedaPostulaciones').addEventListener('input', filtrarPostulaciones);
+
+// Filtros en tiempo real
+document.getElementById('filtroVacante').addEventListener('change', filtrarPostulaciones);
+document.getElementById('filtroEtapa').addEventListener('change', filtrarPostulaciones);
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+    cursor: pointer;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+/* Estilos para la tabla responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+        border-radius: 0.25rem;
+    }
+}
+</style>
+{% endblock %}

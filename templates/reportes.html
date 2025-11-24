@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-bar me-2"></i>Reportes y Estadísticas</h2>
+    <button class="btn btn-outline-primary" onclick="actualizarReportes()">
+        <i class="fas fa-sync-alt me-1"></i>Actualizar Reportes
+    </button>
+</div>
+
+<!-- Tarjetas de Estadísticas Generales -->
+<div class="row mb-4" id="estadisticasGenerales">
+    <div class="col-md-2 col-6 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h4><i class="fas fa-users"></i></h4>
+                <h5 id="totalCandidatos">0</h5>
+                <p class="mb-0">Total Candidatos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h4><i class="fas fa-briefcase"></i></h4>
+                <h5 id="vacantesActivas">0</h5>
+                <p class="mb-0">Vacantes Activas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6 mb-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h4><i class="fas fa-spinner"></i></h4>
+                <h5 id="enProceso">0</h5>
+                <p class="mb-0">En Proceso</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h4><i class="fas fa-user-check"></i></h4>
+                <h5 id="contratados">0</h5>
+                <p class="mb-0">Contratados</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6 mb-3">
+        <div class="card bg-secondary text-white">
+            <div class="card-body text-center">
+                <h4><i class="fas fa-clock"></i></h4>
+                <h5 id="tiempoPromedio">0</h5>
+                <p class="mb-0">Días Promedio</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Conversión por Fuente -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-funnel-dollar me-2"></i>Tasa de Conversión por Fuente
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="conversionFuente" style="min-height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline por Vacante -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-tachometer-alt me-2"></i>Pipeline de Reclutamiento
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="pipelineVacante" style="min-height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ofertas Mensuales -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-file-contract me-2"></i>Ofertas Mensuales
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="ofertasMensuales" style="min-height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carga de Entrevistadores -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-user-tie me-2"></i>Carga de Entrevistadores
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="cargaEntrevistadores" style="min-height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tiempo Medio por Etapa -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-clock me-2"></i>Tiempo Medio por Etapa
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="tiempoMedioEtapa" style="min-height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Highcharts -->
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/funnel.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/export-data.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+
+<script>
+// Función para cargar estadísticas generales
+function cargarEstadisticasGenerales() {
+    fetch('/api/reporte/estadisticas-generales')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('totalCandidatos').textContent = data.total_candidatos;
+            document.getElementById('vacantesActivas').textContent = data.vacantes_activas;
+            document.getElementById('enProceso').textContent = data.en_proceso;
+            document.getElementById('contratados').textContent = data.contratados;
+            document.getElementById('tiempoPromedio').textContent = data.tiempo_promedio_contratacion;
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Función para cargar conversión por fuente
+function cargarConversionFuente() {
+    fetch('/api/reporte/conversion-fuente')
+        .then(response => response.json())
+        .then(data => {
+            Highcharts.chart('conversionFuente', {
+                chart: {
+                    type: 'column'
+                },
+                title: {
+                    text: 'Tasa de Conversión por Fuente de Reclutamiento'
+                },
+                xAxis: {
+                    categories: data.categorias,
+                    crosshair: true
+                },
+                yAxis: [{
+                    title: {
+                        text: 'Tasa de Conversión (%)'
+                    }
+                }, {
+                    title: {
+                        text: 'Total Candidatos'
+                    },
+                    opposite: true
+                }],
+                tooltip: {
+                    shared: true
+                },
+                series: data.series
+            });
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Función para cargar pipeline de vacante
+function cargarPipelineVacante() {
+    fetch('/api/reporte/pipeline-vacante')
+        .then(response => response.json())
+        .then(data => {
+            Highcharts.chart('pipelineVacante', {
+                chart: {
+                    type: 'funnel'
+                },
+                title: {
+                    text: 'Pipeline de Reclutamiento'
+                },
+                plotOptions: {
+                    series: {
+                        dataLabels: {
+                            enabled: true,
+                            format: '<b>{point.name}</b> ({point.y:,.0f})',
+                            color: 'black',
+                            softConnector: true
+                        },
+                        center: ['40%', '50%'],
+                        neckWidth: '30%',
+                        neckHeight: '25%',
+                        width: '80%'
+                    }
+                },
+                legend: {
+                    enabled: false
+                },
+                series: [{
+                    name: 'Candidatos',
+                    data: data.etapas.map((etapa, index) => ({
+                        name: etapa,
+                        y: data.series[0].data[index]
+                    }))
+                }]
+            });
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Función para cargar ofertas mensuales
+function cargarOfertasMensuales() {
+    fetch('/api/reporte/ofertas-mensuales')
+        .then(response => response.json())
+        .then(data => {
+            Highcharts.chart('ofertasMensuales', {
+                chart: {
+                    type: 'column'
+                },
+                title: {
+                    text: 'Ofertas Emitidas vs Aceptadas'
+                },
+                xAxis: {
+                    categories: data.meses,
+                    crosshair: true
+                },
+                yAxis: {
+                    title: {
+                        text: 'Cantidad de Ofertas'
+                    }
+                },
+                tooltip: {
+                    shared: true
+                },
+                plotOptions: {
+                    column: {
+                        stacking: 'normal'
+                    }
+                },
+                series: data.series
+            });
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Función para cargar carga de entrevistadores
+function cargarCargaEntrevistadores() {
+    fetch('/api/reporte/entrevistadores')
+        .then(response => response.json())
+        .then(data => {
+            Highcharts.chart('cargaEntrevistadores', {
+                chart: {
+                    type: 'bar'
+                },
+                title: {
+                    text: 'Carga de Trabajo por Entrevistador'
+                },
+                xAxis: {
+                    categories: data.entrevistadores
+                },
+                yAxis: {
+                    title: {
+                        text: 'Número de Entrevistas'
+                    }
+                },
+                series: [{
+                    name: 'Entrevistas',
+                    data: data.carga,
+                    color: '#f39c12'
+                }]
+            });
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Función para cargar tiempo medio por etapa
+function cargarTiempoMedioEtapa() {
+    fetch('/api/reporte/tiempo-medio-etapa')
+        .then(response => response.json())
+        .then(data => {
+            Highcharts.chart('tiempoMedioEtapa', {
+                chart: {
+                    type: 'column'
+                },
+                title: {
+                    text: 'Tiempo Promedio por Etapa (Días)'
+                },
+                xAxis: {
+                    categories: data.etapas
+                },
+                yAxis: {
+                    title: {
+                        text: 'Días Promedio'
+                    }
+                },
+                series: data.series
+            });
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Función para actualizar todos los reportes
+function actualizarReportes() {
+    cargarEstadisticasGenerales();
+    cargarConversionFuente();
+    cargarPipelineVacante();
+    cargarOfertasMensuales();
+    cargarCargaEntrevistadores();
+    cargarTiempoMedioEtapa();
+    
+    // Mostrar mensaje de actualización
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
+    alert.style.zIndex = '1060';
+    alert.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>Reportes actualizados correctamente
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    
+    // Auto-remover después de 3 segundos
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.parentNode.removeChild(alert);
+        }
+    }, 3000);
+}
+
+// Cargar todos los reportes cuando la página esté lista
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarReportes();
+    
+    // Actualizar automáticamente cada 5 minutos
+    setInterval(actualizarReportes, 300000);
+});
+</script>
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+#estadisticasGenerales .card {
+    min-height: 120px;
+}
+
+.highcharts-container {
+    border-radius: 0.375rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #estadisticasGenerales .col-md-2 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}

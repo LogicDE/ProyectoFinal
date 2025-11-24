@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Candidato - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-edit me-2"></i>Editar Candidato
+                    </h6>
+                    <a href="{{ url_for('candidatos') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Volver
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('editar_candidato', id=candidato.id_candidato) }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="identificacion" class="form-label">Identificación *</label>
+                                <input type="text" class="form-control" id="identificacion" name="identificacion" 
+                                       value="{{ candidato.identificacion }}" required>
+                                <div class="form-text">Número único de identificación</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label">Nombre Completo *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" 
+                                       value="{{ candidato.nom_candidato }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ candidato.email }}" required>
+                                <div class="form-text">El email debe ser único para cada candidato</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="text" class="form-control" id="telefono" name="telefono" 
+                                       value="{{ candidato.telefono or '' }}" placeholder="Ej: 8123456789">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_fuente" class="form-label">Fuente de Reclutamiento</label>
+                                <select class="form-control" id="id_fuente" name="id_fuente">
+                                    <option value="">Seleccionar fuente...</option>
+                                    {% for fuente in fuentes %}
+                                    <option value="{{ fuente.id_fuente }}" 
+                                            {% if candidato.id_fuente == fuente.id_fuente %}selected{% endif %}>
+                                        {{ fuente.nom_fuente }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha de Aplicación</label>
+                                <input type="text" class="form-control" value="{{ candidato.fecha_aplicacion }}" readonly>
+                                <div class="form-text">Fecha original de aplicación (no editable)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('candidatos') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i>Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>Actualizar Candidato
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Información adicional del candidato -->
+        <div class="card shadow mt-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="fas fa-info-circle me-2"></i>Información Adicional
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Estadísticas</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>ID del Candidato:</strong> {{ candidato.id_candidato }}</li>
+                            <li><strong>Postulaciones:</strong> 
+                                {% if candidato.id_candidato in [1, 2, 6] %}
+                                <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                <span class="badge bg-warning">Sin postulaciones</span>
+                                {% endif %}
+                            </li>
+                            <li><strong>Última Actualización:</strong> Hoy</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Acciones Rápidas</h6>
+                        <div class="d-grid gap-2">
+                            <a href="#" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-file-alt me-1"></i>Crear Postulación
+                            </a>
+                            <a href="#" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-history me-1"></i>Ver Historial
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Validación del formulario de edición
+document.querySelector('form').addEventListener('submit', function(e) {
+    const email = document.getElementById('email').value;
+    const telefono = document.getElementById('telefono').value;
+    
+    // Validación básica de email
+    if (!email.includes('@')) {
+        e.preventDefault();
+        alert('Por favor, ingrese un email válido');
+        return;
+    }
+    
+    // Validación de teléfono (opcional)
+    if (telefono && !/^\d+$/.test(telefono)) {
+        e.preventDefault();
+        alert('El teléfono debe contener solo números');
+        return;
+    }
+});
+</script>
+{% endblock %}
