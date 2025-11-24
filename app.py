@@ -1360,8 +1360,17 @@ def decidir_oferta(id):
             sp_exists = cursor.fetchone()
             
             if sp_exists:
-                # Llamar al stored procedure para decidir oferta
-                cursor.callproc('ofertaDecidir', [id, id_estadoferta])
+                # **CORRECCIÓN: Convertir el ID a texto para el stored procedure**
+                if id_estadoferta == '2':
+                    decision_texto = 'Aceptada'
+                elif id_estadoferta == '3':
+                    decision_texto = 'Rechazada'
+                else:
+                    flash('Estado de oferta no válido', 'danger')
+                    return redirect(url_for('ofertas'))
+                
+                # Llamar al stored procedure con el texto correcto
+                cursor.callproc('ofertaDecidir', [id, decision_texto])
             else:
                 # Si no existe el SP, usar actualización directa
                 cursor.execute("""
@@ -1382,7 +1391,15 @@ def decidir_oferta(id):
                 
         except Exception as e:
             mysql.connection.rollback()
-            flash(f'Error al registrar decisión de oferta: {str(e)}', 'danger')
+            error_msg = str(e)
+            if 'solo se pueden decidir ofertas emitidas' in error_msg.lower():
+                flash('Error: Solo se pueden decidir ofertas en estado "Emitida"', 'danger')
+            elif 'decisión inválida' in error_msg.lower():
+                flash('Error: Decisión inválida. Use Aceptada o Rechazada', 'danger')
+            elif 'oferta no encontrada' in error_msg.lower():
+                flash('Error: Oferta no encontrada', 'danger')
+            else:
+                flash(f'Error al registrar decisión de oferta: {error_msg}', 'danger')
         finally:
             cursor.close()
     
@@ -1435,15 +1452,241 @@ def estados_ofertas():
     cursor.close()
     return render_template('estados_ofertas.html', estados=estados)
 
-# Ruta para reportes de ofertas
+# Ruta para reportes de ofertas ########################################3
 @app.route('/reportes/ofertas')
 @login_required
 @role_required([1, 2, 9])
 def reportes_ofertas():
     """Reportes específicos de ofertas"""
-    return render_template('reportes_ofertas.html')
+    # Establecer fechas por defecto (último mes)
+    from datetime import datetime, timedelta
+    fecha_fin = datetime.now().strftime('%Y-%m-%d')
+    fecha_inicio = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    
+    return render_template('reportes_ofertas.html', 
+                         fecha_inicio=fecha_inicio,
+                         fecha_fin=fecha_fin)
+
+@app.route('/api/reportes/ofertas/distribucion-estado')
+@login_required
+def api_reportes_ofertas_distribucion_estado():
+    """API para obtener distribución de ofertas por estado"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT eo.nom_estado, COUNT(*) as cantidad
+            FROM ofertas o
+            JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
+            GROUP BY eo.nom_estado
+            ORDER BY cantidad DESC
+        """)
+        datos = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'datos': datos
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
+@app.route('/api/reportes/ofertas/tendencias-mensuales')
+@login_required
+def api_reportes_ofertas_tendencias_mensuales():
+    """API para obtener tendencias mensuales de ofertas usando audit_ofertas"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(fecha_cambio, '%Y-%m') as mes,
+                COUNT(*) as cantidad,
+                SUM(CASE WHEN JSON_EXTRACT(payload, '$.estado') = 2 THEN 1 ELSE 0 END) as aceptadas,
+                SUM(CASE WHEN JSON_EXTRACT(payload, '$.estado') = 3 THEN 1 ELSE 0 END) as rechazadas
+            FROM audit_ofertas
+            WHERE op = 'U' AND JSON_EXTRACT(payload, '$.new_estado') IN (2, 3)
+            GROUP BY DATE_FORMAT(fecha_cambio, '%Y-%m')
+            ORDER BY mes
+            LIMIT 12
+        """)
+        datos = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'datos': datos
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
+@app.route('/api/reportes/ofertas/metricas-clave')
+@login_required
+def api_reportes_ofertas_metricas_clave():
+    """API para obtener métricas clave de ofertas"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Total de ofertas
+        cursor.execute("SELECT COUNT(*) as total FROM ofertas")
+        total_ofertas = cursor.fetchone()['total']
+        
+        # Monto promedio
+        cursor.execute("SELECT AVG(monto_oferta) as promedio FROM ofertas")
+        monto_promedio = cursor.fetchone()['promedio'] or 0
+        
+        # Tasa de aceptación
+        cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 2")
+        aceptadas = cursor.fetchone()['total']
+        
+        tasa_aceptacion = (aceptadas / total_ofertas * 100) if total_ofertas > 0 else 0
+        
+        # Tiempo promedio de decisión (usando audit_ofertas)
+        cursor.execute("""
+            SELECT AVG(DATEDIFF(fecha_cambio, 
+                (SELECT MAX(fecha_cambio) 
+                 FROM audit_ofertas a2 
+                 WHERE a2.id_oferta = a1.id_oferta AND a2.fecha_cambio < a1.fecha_cambio)
+            )) as tiempo_promedio
+            FROM audit_ofertas a1
+            WHERE op = 'U' AND JSON_EXTRACT(payload, '$.new_estado') IN (2, 3)
+        """)
+        tiempo_promedio = cursor.fetchone()['tiempo_promedio'] or 0
+        
+        return jsonify({
+            'success': True,
+            'datos': {
+                'total_ofertas': total_ofertas,
+                'monto_promedio': float(monto_promedio),
+                'tasa_aceptacion': round(tasa_aceptacion, 2),
+                'tiempo_promedio_decision': float(tiempo_promedio)
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
+@app.route('/api/reportes/ofertas/por-vacante')
+@login_required
+def api_reportes_ofertas_por_vacante():
+    """API para obtener ofertas por vacante"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT 
+                v.id_vacante,
+                v.titulo_vacante,
+                COUNT(o.id_oferta) as total_ofertas,
+                SUM(CASE WHEN o.id_estadoferta = 2 THEN 1 ELSE 0 END) as aceptadas,
+                SUM(CASE WHEN o.id_estadoferta = 3 THEN 1 ELSE 0 END) as rechazadas,
+                AVG(o.monto_oferta) as monto_promedio
+            FROM vacantes v
+            LEFT JOIN postulaciones p ON v.id_vacante = p.id_vacante
+            LEFT JOIN ofertas o ON p.id_postulacion = o.id_postulacion
+            GROUP BY v.id_vacante, v.titulo_vacante
+            HAVING total_ofertas > 0
+            ORDER BY total_ofertas DESC
+            LIMIT 10
+        """)
+        datos = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'datos': datos
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
+@app.route('/api/reportes/ofertas/detallado')
+@login_required
+def api_reportes_ofertas_detallado():
+    """API para obtener reporte detallado de ofertas con filtros"""
+    fecha_inicio = request.args.get('fecha_inicio', '')
+    fecha_fin = request.args.get('fecha_fin', '')
+    estado = request.args.get('estado', 'todos')
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Usar audit_ofertas para estimar fecha de emisión
+        query = """
+            SELECT 
+                o.id_oferta,
+                c.nom_candidato,
+                v.titulo_vacante,
+                o.monto_oferta,
+                eo.nom_estado,
+                (SELECT MIN(fecha_cambio) 
+                 FROM audit_ofertas a 
+                 WHERE a.id_oferta = o.id_oferta AND a.op = 'I') as fecha_emision_estimada,
+                o.fecha_decision,
+                DATEDIFF(o.fecha_decision, 
+                    (SELECT MIN(fecha_cambio) 
+                     FROM audit_ofertas a 
+                     WHERE a.id_oferta = o.id_oferta AND a.op = 'I')
+                ) as dias_pendiente
+            FROM ofertas o
+            JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
+            JOIN candidatos c ON p.id_candidato = c.id_candidato
+            JOIN vacantes v ON p.id_vacante = v.id_vacante
+            JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
+            WHERE 1=1
+        """
+        
+        params = []
+        
+        if fecha_inicio:
+            query += " AND (SELECT MIN(fecha_cambio) FROM audit_ofertas a WHERE a.id_oferta = o.id_oferta AND a.op = 'I') >= %s"
+            params.append(fecha_inicio)
+            
+        if fecha_fin:
+            query += " AND (SELECT MIN(fecha_cambio) FROM audit_ofertas a WHERE a.id_oferta = o.id_oferta AND a.op = 'I') <= %s"
+            params.append(fecha_fin)
+            
+        if estado != 'todos':
+            query += " AND o.id_estadoferta = %s"
+            params.append(estado)
+            
+        query += " ORDER BY o.id_oferta DESC"
+        
+        cursor.execute(query, params)
+        datos = cursor.fetchall()
+        
+        # Formatear fechas
+        for item in datos:
+            if item['fecha_emision_estimada']:
+                item['fecha_emision_estimada'] = item['fecha_emision_estimada'].strftime('%Y-%m-%d')
+            if item['fecha_decision']:
+                item['fecha_decision'] = item['fecha_decision'].strftime('%Y-%m-%d')
+        
+        return jsonify({
+            'success': True,
+            'datos': datos
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
 
 
+
+##########
 @app.route('/api/ofertas/<int:id>')
 @login_required
 def api_obtener_oferta(id):
