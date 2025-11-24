@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Reclutador{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard Reclutador
+        </h1>
+        <div class="d-none d-sm-inline-block">
+            <span class="badge bg-success fs-6">Gestión de Talento</span>
+        </div>
+    </div>
+
+    <!-- Estadísticas Rápidas -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
+                                Total Candidatos
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ total_candidatos }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                                Vacantes Activas
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ vacantes_activas }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-briefcase fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                                Postulaciones Hoy
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ postulaciones_hoy }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">
+                                En Proceso
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ en_proceso }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-sync fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Candidatos Recientes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white py-3">
+                    <h6 class="m-0 fw-bold">
+                        <i class="fas fa-user-plus me-2"></i>Candidatos Recientes
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if candidatos_recientes %}
+                    <div class="list-group list-group-flush">
+                        {% for candidato in candidatos_recientes %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <h6 class="mb-1">{{ candidato.nom_candidato }}</h6>
+                                <p class="mb-1 small text-muted">{{ candidato.email }}</p>
+                            </div>
+                            <small class="text-muted">{{ candidato.fecha_creacion.strftime('%d/%m') }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No hay candidatos recientes</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Postulaciones Pendientes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white py-3">
+                    <h6 class="m-0 fw-bold">
+                        <i class="fas fa-clock me-2"></i>Postulaciones Pendientes
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if postulaciones_pendientes %}
+                    <div class="list-group list-group-flush">
+                        {% for postulacion in postulaciones_pendientes %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <h6 class="mb-1">{{ postulacion.nom_candidato }}</h6>
+                                <p class="mb-1 small text-muted">{{ postulacion.titulo_vacante }}</p>
+                                <span class="badge bg-info">{{ postulacion.nom_etapa }}</span>
+                            </div>
+                            <a href="{{ url_for('postulaciones') }}" class="btn btn-sm btn-outline-primary">
+                                Revisar
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No hay postulaciones pendientes</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas Reclutador -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-gradient-success text-white py-3">
+                    <h6 class="m-0 fw-bold">
+                        <i class="fas fa-bolt me-2"></i>Acciones Rápidas
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4 col-6">
+                            <a href="{{ url_for('candidatos') }}" class="btn btn-outline-primary w-100 h-100 py-3">
+                                <i class="fas fa-user-plus fa-2x mb-2"></i><br>
+                                <small>Nuevo Candidato</small>
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-6">
+                            <a href="{{ url_for('postulaciones') }}" class="btn btn-outline-success w-100 h-100 py-3">
+                                <i class="fas fa-file-alt fa-2x mb-2"></i><br>
+                                <small>Gestionar Postulaciones</small>
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-6">
+                            <a href="{{ url_for('entrevistas') }}" class="btn btn-outline-info w-100 h-100 py-3">
+                                <i class="fas fa-calendar-plus fa-2x mb-2"></i><br>
+                                <small>Programar Entrevista</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

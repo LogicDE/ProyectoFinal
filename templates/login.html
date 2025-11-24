@@ -3,11 +3,11 @@
 {% block title %}Iniciar Sesión - Proyecto Final{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center align-items-center min-vh-100">
-    <div class="col-md-6 col-lg-5 col-xl-4">
-        <div class="card shadow-lg border-0 rounded-4">
-            <div class="card-body p-5">
-                <!-- Logo o icono -->
+<div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center">
+    <div class="row w-100 justify-content-center">
+        <!-- Formulario Login -->
+        <div class="col-md-5 col-lg-4">
+            <div class="card shadow-lg border-0 rounded-4 p-4">
                 <div class="text-center mb-4">
                     <div class="bg-primary bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="white" class="bi bi-person-circle" viewBox="0 0 16 16">
@@ -19,7 +19,7 @@
 
                 <h2 class="card-title text-center mb-2 fw-bold">Bienvenido</h2>
                 <p class="text-center text-muted mb-4">Inicia sesión para continuar</p>
-                
+
                 <form method="POST" action="{{ url_for('login') }}">
                     <div class="mb-3">
                         <label for="username" class="form-label fw-semibold">Usuario</label>
@@ -32,7 +32,7 @@
                             <input type="text" class="form-control border-start-0 ps-0" id="username" name="username" placeholder="Ingresa tu usuario" required>
                         </div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label for="password" class="form-label fw-semibold">Contraseña</label>
                         <div class="input-group">
@@ -44,7 +44,7 @@
                             <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" placeholder="Ingresa tu contraseña" required>
                         </div>
                     </div>
-                    
+
                     <div class="d-grid mb-3">
                         <button type="submit" class="btn btn-primary btn-lg rounded-3 fw-semibold">
                             Iniciar Sesión
@@ -53,10 +53,17 @@
                 </form>
             </div>
         </div>
-        
-        <p class="text-center text-muted mt-4">
-            <small>&copy; 2025 Proyecto Final. Todos los derechos reservados.</small>
-        </p>
+
+        <!-- Registro Candidatos -->
+        <div class="col-md-5 col-lg-4 d-flex flex-column justify-content-center align-items-center">
+            <div class="card shadow-lg border-0 rounded-4 p-5 text-center bg-light">
+                <h3 class="mb-3 fw-bold text-primary">¿Deseas Postularte?</h3>
+                <p class="mb-4 text-muted">Registra tus datos para postularte a vacantes disponibles.</p>
+                <a href="{{ url_for('registro_candidato_publico') }}" class="btn btn-outline-primary btn-lg rounded-3 fw-semibold">
+                    <i class="fas fa-user-plus me-2"></i> Registrarse
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -64,26 +71,28 @@
     .min-vh-100 {
         min-height: 100vh;
     }
-    
-    .input-group-text {
-        background-color: #f8f9fa;
-    }
-    
+
     .form-control:focus {
         border-color: #86b7fe;
         box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
     }
-    
+
     .input-group:focus-within .input-group-text {
         border-color: #86b7fe;
     }
-    
+
     .card {
         transition: transform 0.2s ease-in-out;
     }
-    
+
     .card:hover {
         transform: translateY(-5px);
+    }
+
+    @media (max-width: 991px) {
+        .row > .col-md-5 {
+            margin-bottom: 30px;
+        }
     }
 </style>
 {% endblock %}

@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Entrevistadores - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-tie me-2"></i>Gestión de Entrevistadores</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEntrevistador" onclick="limpiarFormulario()">
+        <i class="fas fa-plus me-1"></i>Nuevo Entrevistador
+    </button>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Buscar entrevistadores..." id="busquedaEntrevistadores">
+                    <button class="btn btn-outline-secondary" type="button" onclick="filtrarEntrevistadores()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select class="form-control" id="filtroRol">
+                    <option value="">Todos los roles</option>
+                    {% for rol in roles %}
+                    <option value="{{ rol.id_rol }}">{{ rol.nom_rol }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-info" onclick="exportarEntrevistadores()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="recargarTabla()">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Rápidas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Entrevistadores</h6>
+                        <h3>{{ entrevistadores|length }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-tie fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Entrevistas Totales</h6>
+                        <h3 id="totalEntrevistas">0</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Pendientes Hoy</h6>
+                        <h3 id="pendientesHoy">0</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Promedio Puntaje</h6>
+                        <h3 id="promedioPuntaje">0.0</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-star fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Entrevistadores -->
+<div class="card shadow">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Entrevistadores</h6>
+        <span class="badge bg-primary">{{ entrevistadores|length }} entrevistadores</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="tablaEntrevistadores">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Rol</th>
+                        <th>Total Entrevistas</th>
+                        <th>Pendientes</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrevistador in entrevistadores %}
+                    <tr data-entrevistador-id="{{ entrevistador.id_entrevistador }}" data-rol-id="{{ entrevistador.id_rol }}">
+                        <td>{{ entrevistador.id_entrevistador }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle bg-primary text-white me-2">
+                                    {{ entrevistador.nom_entrevistador[0]|upper if entrevistador.nom_entrevistador else 'E' }}
+                                </div>
+                                <div>
+                                    <strong>{{ entrevistador.nom_entrevistador }}</strong>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if entrevistador.email %}
+                            <a href="mailto:{{ entrevistador.email }}" class="text-decoration-none">
+                                {{ entrevistador.email }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entrevistador.telefono %}
+                            <a href="tel:{{ entrevistador.telefono }}" class="text-decoration-none">
+                                {{ entrevistador.telefono }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ entrevistador.nom_rol or 'Sin rol' }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ entrevistador.total_entrevistas or 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning">{{ entrevistador.entrevistas_pendientes or 0 }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-warning" 
+                                        onclick="editarEntrevistador({{ entrevistador.id_entrevistador }})"
+                                        data-bs-toggle="tooltip" title="Editar entrevistador">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-info" 
+                                        onclick="verDetalles({{ entrevistador.id_entrevistador }})"
+                                        data-bs-toggle="tooltip" title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="confirmarEliminacion({{ entrevistador.id_entrevistador }}, '{{ entrevistador.nom_entrevistador }}')"
+                                        data-bs-toggle="tooltip" title="Eliminar entrevistador">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Mensaje si no hay entrevistadores -->
+        {% if not entrevistadores %}
+        <div class="text-center py-4">
+            <i class="fas fa-user-tie fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No hay entrevistadores registrados</h5>
+            <p class="text-muted">Comienza creando el primer entrevistador del sistema.</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEntrevistador">
+                <i class="fas fa-plus me-1"></i>Crear Primer Entrevistador
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para Nuevo Entrevistador -->
+<div class="modal fade" id="modalEntrevistador" tabindex="-1" aria-labelledby="modalEntrevistadorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEntrevistadorLabel">Nuevo Entrevistador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEntrevistador" method="POST" action="{{ url_for('crear_entrevistador') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nom_entrevistador" class="form-label">Nombre Completo *</label>
+                                <input type="text" class="form-control" id="nom_entrevistador" name="nom_entrevistador" required
+                                       placeholder="Ingrese nombre completo del entrevistador">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" required
+                                       placeholder="entrevistador@empresa.com">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono"
+                                       placeholder="+1 234 567 8900">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_rol" class="form-label">Rol</label>
+                                <select class="form-control" id="id_rol" name="id_rol">
+                                    <option value="">Seleccionar rol...</option>
+                                    {% for rol in roles %}
+                                    <option value="{{ rol.id_rol }}">{{ rol.nom_rol }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Crear Entrevistador
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="modalConfirmarEliminacion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="textoEliminacion">¿Está seguro que desea eliminar este entrevistador?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Advertencia:</strong> Esta acción no se puede deshacer. 
+                    Si el entrevistador tiene entrevistas asignadas o está asociado a un usuario, no podrá ser eliminado.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formEliminarEntrevistador" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Eliminar Entrevistador
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles -->
+<div class="modal fade" id="modalDetallesEntrevistador" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Entrevistador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detallesEntrevistador">
+                <!-- Los detalles se cargarán via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Inicializar tooltips y cargar estadísticas
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Cargar estadísticas
+    cargarEstadisticas();
+});
+
+// Función para cargar estadísticas
+function cargarEstadisticas() {
+    fetch('/api/entrevistadores-estadisticas')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let totalEntrevistas = 0;
+                let pendientesHoy = 0;
+                let puntajes = [];
+                
+                data.estadisticas.forEach(est => {
+                    totalEntrevistas += est.total_entrevistas || 0;
+                    pendientesHoy += est.entrevistas_pendientes || 0;
+                    if (est.puntaje_promedio) {
+                        puntajes.push(parseFloat(est.puntaje_promedio));
+                    }
+                });
+                
+                // Calcular promedio de puntajes
+                let promedioPuntaje = puntajes.length > 0 ? 
+                    (puntajes.reduce((a, b) => a + b, 0) / puntajes.length).toFixed(1) : '0.0';
+                
+                document.getElementById('totalEntrevistas').textContent = totalEntrevistas;
+                document.getElementById('pendientesHoy').textContent = pendientesHoy;
+                document.getElementById('promedioPuntaje').textContent = promedioPuntaje;
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar estadísticas:', error);
+        });
+}
+
+// Función para limpiar el formulario
+function limpiarFormulario() {
+    document.getElementById('formEntrevistador').reset();
+    document.getElementById('modalEntrevistadorLabel').textContent = 'Nuevo Entrevistador';
+    document.getElementById('formEntrevistador').action = "{{ url_for('crear_entrevistador') }}";
+}
+
+// Función para editar entrevistador
+function editarEntrevistador(idEntrevistador) {
+    window.location.href = `/entrevistadores/editar/${idEntrevistador}`;
+}
+
+// Función para ver detalles del entrevistador
+function verDetalles(idEntrevistador) {
+    fetch(`/api/entrevistadores/${idEntrevistador}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const entrevistador = data.entrevistador;
+                const detallesHTML = `
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <div class="avatar-circle-lg bg-primary text-white mx-auto mb-3">
+                                ${entrevistador.nom_entrevistador[0].toUpperCase()}
+                            </div>
+                            <h5>${entrevistador.nom_entrevistador}</h5>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Información de Contacto</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>ID:</strong> ${entrevistador.id_entrevistador}</li>
+                                        <li><strong>Email:</strong> ${entrevistador.email || 'No especificado'}</li>
+                                        <li><strong>Teléfono:</strong> ${entrevistador.telefono || 'No especificado'}</li>
+                                        <li><strong>Rol:</strong> <span class="badge bg-secondary">${entrevistador.nom_rol || 'Sin rol'}</span></li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Estadísticas</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Total Entrevistas:</strong> <span class="badge bg-info">${entrevistador.total_entrevistas || 0}</span></li>
+                                        <li><strong>Entrevistas Pendientes:</strong> <span class="badge bg-warning">${entrevistador.entrevistas_pendientes || 0}</span></li>
+                                        <li><strong>Puntaje Promedio:</strong> <span class="badge bg-success">${entrevistador.puntaje_promedio ? entrevistador.puntaje_promedio.toFixed(1) : 'N/A'}</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h6>Próximas Entrevistas</h6>
+                            <div id="proximasEntrevistas" class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Cargando próximas entrevistas...</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('detallesEntrevistador').innerHTML = detallesHTML;
+                
+                // Cargar próximas entrevistas
+                cargarProximasEntrevistas(idEntrevistador);
+                
+                const modal = new bootstrap.Modal(document.getElementById('modalDetallesEntrevistador'));
+                modal.show();
+            } else {
+                alert('Error al cargar los detalles del entrevistador');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles del entrevistador');
+        });
+}
+
+// Función para cargar próximas entrevistas
+function cargarProximasEntrevistas(idEntrevistador) {
+    fetch(`/api/entrevistadores/${idEntrevistador}/entrevistas`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('proximasEntrevistas');
+            if (data.success && data.entrevistas.length > 0) {
+                let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+                html += '<thead><tr><th>Candidato</th><th>Vacante</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>';
+                
+                data.entrevistas.forEach(ent => {
+                    html += `
+                        <tr>
+                            <td>${ent.nom_candidato}</td>
+                            <td>${ent.titulo_vacante}</td>
+                            <td>${new Date(ent.fecha_entrevista).toLocaleString()}</td>
+                            <td><span class="badge bg-${ent.id_estadoentrevista === 1 ? 'warning' : 'info'}">${ent.estado_entrevista}</span></td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-muted">No hay entrevistas programadas.</p>';
+            }
+        })
+        .catch(error => {
+            document.getElementById('proximasEntrevistas').innerHTML = '<p class="text-danger">Error al cargar las entrevistas.</p>';
+        });
+}
+
+// Función para confirmar eliminación
+function confirmarEliminacion(idEntrevistador, nombre) {
+    document.getElementById('textoEliminacion').textContent = `¿Está seguro que desea eliminar al entrevistador "${nombre}"?`;
+    document.getElementById('formEliminarEntrevistador').action = `/entrevistadores/eliminar/${idEntrevistador}`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
+    modal.show();
+}
+
+// Función para filtrar entrevistadores
+function filtrarEntrevistadores() {
+    const busqueda = document.getElementById('busquedaEntrevistadores').value.toLowerCase();
+    const filtroRol = document.getElementById('filtroRol').value;
+    const filas = document.querySelectorAll('#tablaEntrevistadores tbody tr');
+    
+    filas.forEach(fila => {
+        const textoFila = fila.textContent.toLowerCase();
+        const rolId = fila.getAttribute('data-rol-id');
+        
+        const coincideBusqueda = textoFila.includes(busqueda);
+        const coincideRol = !filtroRol || rolId === filtroRol;
+        
+        if (coincideBusqueda && coincideRol) {
+            fila.style.display = '';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+}
+
+// Función para exportar entrevistadores
+function exportarEntrevistadores() {
+    // En una implementación real, aquí se generaría un CSV o Excel
+    alert('Funcionalidad de exportación en desarrollo');
+}
+
+// Función para recargar la tabla
+function recargarTabla() {
+    window.location.reload();
+}
+
+// Validación del formulario
+document.getElementById('formEntrevistador').addEventListener('submit', function(e) {
+    const email = document.getElementById('email').value;
+    
+    // Validación básica de email
+    if (!email.includes('@')) {
+        e.preventDefault();
+        alert('Por favor ingrese un email válido');
+        return;
+    }
+});
+
+// Búsqueda en tiempo real
+document.getElementById('busquedaEntrevistadores').addEventListener('input', filtrarEntrevistadores);
+
+// Filtros en tiempo real
+document.getElementById('filtroRol').addEventListener('change', filtrarEntrevistadores);
+</script>
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.avatar-circle-lg {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 2rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+/* Estilos para la tabla responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+        border-radius: 0.25rem;
+    }
+    
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+    }
+    
+    .card-body .row {
+        margin-bottom: 0.5rem;
+    }
+}
+</style>
+{% endblock %}

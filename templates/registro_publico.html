@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}Registro de Candidatos - Proyecto Final{% endblock %}
+
+{% block content %}
+<div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center py-5">
+    <div class="row w-100 justify-content-center g-4">
+        <!-- Formulario Registro -->
+        <div class="col-12 col-md-6 col-lg-5 col-xl-4">
+            <div class="card shadow-lg border-0 rounded-4 fade-in">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <div class="bg-primary bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                            <i class="fas fa-user-plus text-white" style="font-size: 1.8rem;"></i>
+                        </div>
+                        <h2 class="fw-bold mb-2" style="color: var(--primary-color);">Registro de Candidatos</h2>
+                        <p class="text-muted mb-0">Completa tus datos para postularte a vacantes</p>
+                    </div>
+
+                    <!-- Mensajes flash -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mb-3" role="alert">
+                                    <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }} me-2"></i>
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('registro_candidato_publico') }}">
+                        <div class="mb-3">
+                            <label for="identificacion" class="form-label">
+                                <i class="fas fa-id-card me-2 text-primary"></i>Identificación <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="identificacion" name="identificacion" placeholder="Ej: 123456789" required>
+                            <small class="form-text">Número único de identificación</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">
+                                <i class="fas fa-user me-2 text-primary"></i>Nombre Completo <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" placeholder="Ej: Juan Pérez García" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">
+                                <i class="fas fa-envelope me-2 text-primary"></i>Email <span class="text-danger">*</span>
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="ejemplo@correo.com" required>
+                            <small class="form-text">Te contactaremos a este correo</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="telefono" class="form-label">
+                                <i class="fas fa-phone me-2 text-primary"></i>Teléfono
+                            </label>
+                            <input type="text" class="form-control" id="telefono" name="telefono" placeholder="8123456789">
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="id_fuente" class="form-label">
+                                <i class="fas fa-bullhorn me-2 text-primary"></i>¿Cómo te enteraste de nosotros?
+                            </label>
+                            <select class="form-control" id="id_fuente" name="id_fuente">
+                                <option value="">Seleccionar...</option>
+                                {% for fuente in fuentes %}
+                                    <option value="{{ fuente.id_fuente }}">{{ fuente.nom_fuente }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Registrarme
+                            </button>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-sign-in-alt me-2"></i>Volver al Login
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información Adicional con Carrusel de Vacantes -->
+        <div class="col-12 col-md-6 col-lg-5 col-xl-4">
+            <div class="card shadow-lg border-0 rounded-4 fade-in" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <h3 class="fw-bold" style="color: var(--primary-color);">
+                            <i class="fas fa-gift me-2"></i>Oportunidades Disponibles
+                        </h3>
+                        <p class="text-muted">Descubre nuestras vacantes activas</p>
+                    </div>
+                    
+                    <!-- Carrusel de Vacantes -->
+                    {% if vacantes_activas %}
+                    <div id="vacantesCarousel" class="carousel slide mb-4" data-bs-ride="carousel">
+                        <div class="carousel-indicators">
+                            {% for vacante in vacantes_activas %}
+                            <button type="button" data-bs-target="#vacantesCarousel" data-bs-slide-to="{{ loop.index0 }}" 
+                                    class="{% if loop.first %}active{% endif %}" aria-current="{% if loop.first %}true{% endif %}" 
+                                    aria-label="Slide {{ loop.index }}"></button>
+                            {% endfor %}
+                        </div>
+                        <div class="carousel-inner rounded-3">
+                            {% for vacante in vacantes_activas %}
+                            <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                <div class="bg-white rounded-3 p-4 shadow-sm h-100">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h5 class="fw-bold text-primary mb-0">{{ vacante.titulo_vacante }}</h5>
+                                        <span class="badge bg-success">Activa</span>
+                                    </div>
+                                    
+                                    {% if vacante.desc_vacante %}
+                                    <p class="text-muted mb-3" style="font-size: 0.9rem;">
+                                        {{ vacante.desc_vacante[:120] }}{% if vacante.desc_vacante|length > 120 %}...{% endif %}
+                                    </p>
+                                    {% endif %}
+                                    
+                                    <div class="vacante-info">
+                                        {% if vacante.nom_departamento %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="fas fa-building me-2 text-muted small"></i>
+                                            <small class="text-muted">{{ vacante.nom_departamento }}</small>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="fas fa-calendar me-2 text-muted small"></i>
+                                            <small class="text-muted">
+                                                Publicada: {{ vacante.fecha_creacion.strftime('%d/%m/%Y') if vacante.fecha_creacion else 'Reciente' }}
+                                            </small>
+                                        </div>
+                                        
+                                        {% if vacante.num_postulaciones is defined %}
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-users me-2 text-muted small"></i>
+                                            <small class="text-muted">{{ vacante.num_postulaciones }} postulaciones</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#vacantesCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Anterior</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#vacantesCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Siguiente</span>
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-briefcase fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No hay vacantes activas en este momento</p>
+                        <small class="text-muted">Vuelve pronto para nuevas oportunidades</small>
+                    </div>
+                    {% endif %}
+
+                    <!-- Beneficios de Registrarse -->
+                    <div class="benefits-section">
+                        <h6 class="fw-bold text-center mb-3" style="color: var(--primary-color);">
+                            <i class="fas fa-rocket me-2"></i>Beneficios al Registrarte
+                        </h6>
+                        
+                        <div class="d-flex align-items-start mb-3 p-3 bg-white rounded-3 shadow-sm">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                                    <i class="fas fa-briefcase text-primary small"></i>
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <h6 class="fw-bold mb-1 small" style="color: var(--dark-color);">Postúlate a múltiples vacantes</h6>
+                                <p class="text-muted small mb-0">Accede a todas las oportunidades disponibles</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-start mb-3 p-3 bg-white rounded-3 shadow-sm">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                                    <i class="fas fa-chart-line text-primary small"></i>
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <h6 class="fw-bold mb-1 small" style="color: var(--dark-color);">Sigue tu progreso</h6>
+                                <p class="text-muted small mb-0">Consulta el estado de tus postulaciones</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-start p-3 bg-white rounded-3 shadow-sm">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                                    <i class="fas fa-bell text-primary small"></i>
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <h6 class="fw-bold mb-1 small" style="color: var(--dark-color);">Recibe notificaciones</h6>
+                                <p class="text-muted small mb-0">Te avisamos de nuevas oportunidades</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                            <i class="fas fa-shield-alt text-primary me-2"></i>
+                            <span class="small text-primary fw-semibold">Tus datos están protegidos y seguros</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.vacante-info {
+    border-top: 1px solid #e9ecef;
+    padding-top: 12px;
+}
+
+.carousel-item {
+    transition: transform 0.6s ease-in-out;
+}
+
+.carousel-control-prev,
+.carousel-control-next {
+    width: 40px;
+    height: 40px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0 10px;
+}
+
+.carousel-indicators button {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin: 0 3px;
+}
+
+.benefits-section {
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+}
+</style>
+
+<script>
+// Auto-avance del carrusel cada 5 segundos
+document.addEventListener('DOMContentLoaded', function() {
+    var myCarousel = document.getElementById('vacantesCarousel');
+    if (myCarousel) {
+        var carousel = new bootstrap.Carousel(myCarousel, {
+            interval: 5000,
+            wrap: true
+        });
+    }
+});
+</script>
+{% endblock %}

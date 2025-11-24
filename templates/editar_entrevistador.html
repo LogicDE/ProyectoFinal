@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Entrevistador - Sistema de Reclutamiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-tie me-2"></i>Editar Entrevistador</h2>
+    <a href="{{ url_for('entrevistadores') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver a Entrevistadores
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información del Entrevistador</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('editar_entrevistador', id=entrevistador.id_entrevistador) }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nom_entrevistador" class="form-label">Nombre Completo *</label>
+                                <input type="text" class="form-control" id="nom_entrevistador" name="nom_entrevistador" 
+                                       value="{{ entrevistador.nom_entrevistador }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ entrevistador.email }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono" 
+                                       value="{{ entrevistador.telefono or '' }}"
+                                       placeholder="+1 234 567 8900">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_rol" class="form-label">Rol</label>
+                                <select class="form-control" id="id_rol" name="id_rol">
+                                    <option value="">Seleccionar rol...</option>
+                                    {% for rol in roles %}
+                                    <option value="{{ rol.id_rol }}" 
+                                            {% if rol.id_rol == entrevistador.id_rol %}selected{% endif %}>
+                                        {{ rol.nom_rol }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Información:</strong> 
+                        Está editando el entrevistador <strong>{{ entrevistador.nom_entrevistador }}</strong>.
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('entrevistadores') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Información de Estadísticas -->
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Estadísticas</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>ID de Entrevistador:</strong><br>
+                    <code>{{ entrevistador.id_entrevistador }}</code>
+                </div>
+                <div class="mb-3">
+                    <strong>Total Entrevistas:</strong><br>
+                    <span class="badge bg-info">{{ entrevistador.total_entrevistas or 0 }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Entrevistas Pendientes:</strong><br>
+                    <span class="badge bg-warning">{{ entrevistador.entrevistas_pendientes or 0 }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Rol Actual:</strong><br>
+                    <span class="badge bg-secondary">{{ entrevistador.nom_rol or 'Sin rol' }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Acciones Peligrosas -->
+        <div class="card shadow mt-4 border-danger">
+            <div class="card-header py-3 bg-danger text-white">
+                <h6 class="m-0 font-weight-bold">Acciones Peligrosas</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    Esta acción no se puede deshacer. Use con precaución.
+                </p>
+                
+                <form method="POST" action="{{ url_for('eliminar_entrevistador', id=entrevistador.id_entrevistador) }}" 
+                      onsubmit="return confirm('¿Está seguro que desea eliminar este entrevistador? Esta acción no se puede deshacer.');">
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                        <i class="fas fa-trash me-1"></i>Eliminar Entrevistador
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Validación del formulario
+document.querySelector('form').addEventListener('submit', function(e) {
+    const email = document.getElementById('email').value;
+    
+    // Validación básica de email
+    if (!email.includes('@')) {
+        e.preventDefault();
+        alert('Por favor ingrese un email válido');
+        return;
+    }
+    
+    if (!confirm('¿Está seguro que desea guardar los cambios?')) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

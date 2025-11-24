@@ -1,80 +1,119 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard - Sistema de Reclutamiento{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header del Dashboard -->
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="mb-1 fw-bold">Dashboard</h2>
-            <p class="text-muted mb-0">Resumen general del sistema de reclutamiento</p>
+            <h1 class="h3 mb-1 fw-bold text-primary">
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </h1>
+            <p class="text-muted mb-0">Resumen general del sistema - {{ session.nom_rol }}</p>
         </div>
-        <div>
-            <button class="btn btn-outline-primary">
-                <i class="fas fa-download me-2"></i>
-                Exportar
+        <div class="btn-group">
+            <button class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-sync-alt me-1"></i>Actualizar
+            </button>
+            <button class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-download me-1"></i>Exportar
             </button>
         </div>
     </div>
 
-    <!-- El resto del contenido de tu dashboard permanece igual -->
-    <!-- Tarjetas de Métricas -->
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 card-hover">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
+    <!-- Alertas -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas 
+                            {% if category == 'success' %}fa-check-circle
+                            {% elif category == 'danger' %}fa-exclamation-circle
+                            {% elif category == 'warning' %}fa-exclamation-triangle
+                            {% else %}fa-info-circle{% endif %}
+                            me-2"></i>
+                        {{ message }}
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Tarjetas de Métricas Principales -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white shadow-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <p class="text-muted mb-2 small text-uppercase fw-semibold">Candidatos</p>
-                            <h2 class="mb-0 fw-bold">{{ total_candidatos }}</h2>
-                            <p class="text-success mb-0 mt-2 small">
-                                <i class="fas fa-arrow-up me-1"></i>
-                                +12% vs mes anterior
-                            </p>
+                            <h6 class="card-title text-white-50 mb-2">TOTAL CANDIDATOS</h6>
+                            <h2 class="fw-bold mb-0">{{ total_candidatos|default(0) }}</h2>
+                            <small class="text-white-70">
+                                <i class="fas fa-arrow-up me-1"></i>En base de datos
+                            </small>
                         </div>
-                        <div class="icon-box bg-primary bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-users text-primary fa-lg"></i>
+                        <div class="icon-circle bg-white-20">
+                            <i class="fas fa-users text-white"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 card-hover">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white shadow-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <p class="text-muted mb-2 small text-uppercase fw-semibold">Vacantes Activas</p>
-                            <h2 class="mb-0 fw-bold">{{ vacantes_activas }}</h2>
-                            <p class="text-info mb-0 mt-2 small">
-                                <i class="fas fa-minus me-1"></i>
-                                Sin cambios
-                            </p>
+                            <h6 class="card-title text-white-50 mb-2">VACANTES ACTIVAS</h6>
+                            <h2 class="fw-bold mb-0">{{ vacantes_activas|default(0) }}</h2>
+                            <small class="text-white-70">
+                                <i class="fas fa-briefcase me-1"></i>Disponibles
+                            </small>
                         </div>
-                        <div class="icon-box bg-success bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-briefcase text-success fa-lg"></i>
+                        <div class="icon-circle bg-white-20">
+                            <i class="fas fa-briefcase text-white"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 card-hover">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white shadow-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <p class="text-muted mb-2 small text-uppercase fw-semibold">En Proceso</p>
-                            <h2 class="mb-0 fw-bold">{{ en_proceso }}</h2>
-                            <p class="text-warning mb-0 mt-2 small">
-                                <i class="fas fa-arrow-up me-1"></i>
-                                +8% esta semana
-                            </p>
+                            <h6 class="card-title text-white-50 mb-2">EN PROCESO</h6>
+                            <h2 class="fw-bold mb-0">{{ en_proceso|default(0) }}</h2>
+                            <small class="text-white-70">
+                                <i class="fas fa-hourglass-half me-1"></i>En selección
+                            </small>
                         </div>
-                        <div class="icon-box bg-warning bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-hourglass-half text-warning fa-lg"></i>
+                        <div class="icon-circle bg-white-20">
+                            <i class="fas fa-hourglass-half text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white shadow-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title text-white-50 mb-2">POSTULACIONES HOY</h6>
+                            <h2 class="fw-bold mb-0">{{ postulaciones_hoy|default(0) }}</h2>
+                            <small class="text-white-70">
+                                <i class="fas fa-calendar-day me-1"></i>Hoy
+                            </small>
+                        </div>
+                        <div class="icon-circle bg-white-20">
+                            <i class="fas fa-file-alt text-white"></i>
                         </div>
                     </div>
                 </div>
@@ -82,253 +121,61 @@
         </div>
     </div>
 
-    <!-- Gráficas y tabla (mantén tu contenido existente) -->
-    <div class="row g-4 mt-2">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 fw-semibold">Conversión por Fuente</h5>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Ver detalles</a></li>
-                                <li><a class="dropdown-item" href="#">Exportar datos</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="chartConversionFuente" style="height: 320px;"></div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 fw-semibold">Ofertas Mensuales</h5>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Ver detalles</a></li>
-                                <li><a class="dropdown-item" href="#">Exportar datos</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="chartOfertasMensuales" style="height: 320px;"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tabla de Actividad Reciente -->
-    <div class="row mt-4">
+    <!-- Información del Usuario -->
+    <div class="row">
         <div class="col-12">
-            <div class="card border-0 shadow-sm">
+            <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 fw-semibold">Actividad Reciente</h5>
+                    <h5 class="mb-0 fw-semibold text-primary">
+                        <i class="fas fa-user-circle me-2"></i>Información del Sistema
+                    </h5>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th class="border-0 py-3">Candidato</th>
-                                    <th class="border-0 py-3">Vacante</th>
-                                    <th class="border-0 py-3">Estado</th>
-                                    <th class="border-0 py-3">Fecha</th>
-                                    <th class="border-0 py-3">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="py-3">
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">JD</div>
-                                            <span class="fw-medium">Juan Pérez</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-3">Desarrollador Frontend</td>
-                                    <td class="py-3"><span class="badge bg-success-subtle text-success">Entrevista</span></td>
-                                    <td class="py-3 text-muted">Hace 2 horas</td>
-                                    <td class="py-3">
-                                        <button class="btn btn-sm btn-outline-primary">Ver</button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="py-3">
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-circle bg-success bg-opacity-10 text-success me-3">MG</div>
-                                            <span class="fw-medium">María González</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-3">Diseñadora UX/UI</td>
-                                    <td class="py-3"><span class="badge bg-warning-subtle text-warning">En Revisión</span></td>
-                                    <td class="py-3 text-muted">Hace 5 horas</td>
-                                    <td class="py-3">
-                                        <button class="btn btn-sm btn-outline-primary">Ver</button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">Usuario</label>
+                                <p class="fw-semibold mb-0">{{ session.username }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">Rol</label>
+                                <p class="fw-semibold mb-0">{{ session.nom_rol }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">Accesos Disponibles</label>
+                                <div class="mt-2">
+                                    {% if session.id_rolsistema in [1, 2, 9] %}
+                                    <span class="badge bg-primary me-1 mb-1">Candidatos</span>
+                                    <span class="badge bg-primary me-1 mb-1">Vacantes</span>
+                                    <span class="badge bg-primary me-1 mb-1">Postulaciones</span>
+                                    {% endif %}
+                                    {% if session.id_rolsistema in [1, 2, 9, 10] %}
+                                    <span class="badge bg-success me-1 mb-1">Entrevistas</span>
+                                    <span class="badge bg-success me-1 mb-1">Ofertas</span>
+                                    {% endif %}
+                                    {% if session.id_rolsistema == 1 %}
+                                    <span class="badge bg-warning me-1 mb-1">Usuarios</span>
+                                    <span class="badge bg-warning me-1 mb-1">Configuración</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .card-hover {
-        transition: all 0.3s ease;
-    }
-    
-    .card-hover:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1) !important;
-    }
-    
-    .icon-box {
-        width: 56px;
-        height: 56px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .avatar-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 14px;
-    }
-    
-    .table-responsive {
-        border-radius: 0 0 0.375rem 0.375rem;
-    }
-    
-    .badge {
-        padding: 0.375rem 0.75rem;
-        font-weight: 500;
-        font-size: 0.75rem;
-    }
-
-    .navbar-nav .nav-link {
-        border-radius: 0.375rem;
-        margin: 0 0.125rem;
-        padding: 0.5rem 1rem !important;
-    }
-
-    .navbar-nav .nav-link.active {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .navbar-nav .nav-link:hover:not(.active) {
-        background-color: rgba(255, 255, 255, 0.05);
-    }
-</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Configuración común para las gráficas
-Highcharts.setOptions({
-    colors: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0'],
-    chart: {
-        style: {
-            fontFamily: 'inherit'
-        }
-    }
+// Inicializar tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
 });
-
-// Gráfica de conversión por fuente
-fetch('/api/reporte/conversion-fuente')
-    .then(response => response.json())
-    .then(data => {
-        Highcharts.chart('chartConversionFuente', {
-            chart: { 
-                type: 'column',
-                backgroundColor: 'transparent'
-            },
-            title: { 
-                text: '',
-                style: { fontSize: '14px', fontWeight: '600' }
-            },
-            xAxis: { 
-                categories: data.categorias,
-                labels: { style: { fontSize: '12px' }}
-            },
-            yAxis: { 
-                title: { text: 'Porcentaje (%)', style: { fontSize: '12px' }},
-                labels: { style: { fontSize: '12px' }}
-            },
-            plotOptions: {
-                column: {
-                    borderRadius: 5,
-                    dataLabels: {
-                        enabled: true,
-                        format: '{y}%'
-                    }
-                }
-            },
-            legend: {
-                itemStyle: { fontSize: '12px' }
-            },
-            credits: { enabled: false },
-            series: data.series
-        });
-    });
-
-// Gráfica de ofertas mensuales
-fetch('/api/reporte/ofertas-mensuales')
-    .then(response => response.json())
-    .then(data => {
-        Highcharts.chart('chartOfertasMensuales', {
-            chart: { 
-                type: 'area',
-                backgroundColor: 'transparent'
-            },
-            title: { 
-                text: '',
-                style: { fontSize: '14px', fontWeight: '600' }
-            },
-            xAxis: { 
-                categories: data.meses,
-                labels: { style: { fontSize: '12px' }}
-            },
-            yAxis: { 
-                title: { text: 'Cantidad', style: { fontSize: '12px' }},
-                labels: { style: { fontSize: '12px' }}
-            },
-            plotOptions: {
-                area: {
-                    fillOpacity: 0.2,
-                    marker: {
-                        radius: 4,
-                        fillColor: '#FFFFFF',
-                        lineWidth: 2,
-                        lineColor: null
-                    }
-                }
-            },
-            legend: {
-                itemStyle: { fontSize: '12px' }
-            },
-            credits: { enabled: false },
-            series: data.series
-        });
-    });
 </script>
 {% endblock %}

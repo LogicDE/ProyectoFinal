@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Entrevistas{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-calendar-check me-2"></i>Mis Entrevistas
+        </h1>
+        <div class="d-none d-sm-inline-block">
+            <span class="badge bg-info fs-6">Vista Entrevistador</span>
+        </div>
+    </div>
+
+    <!-- Filtros Simples -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Estado</label>
+                    <select class="form-select" id="filtroEstado">
+                        <option value="">Todos los estados</option>
+                        <option value="1">Programada</option>
+                        <option value="2">En Progreso</option>
+                        <option value="3">Completada</option>
+                        <option value="4">Cancelada</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fecha</label>
+                    <select class="form-select" id="filtroFecha">
+                        <option value="">Todas las fechas</option>
+                        <option value="hoy">Hoy</option>
+                        <option value="semana">Esta semana</option>
+                        <option value="mes">Este mes</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" id="btnFiltrar">
+                        <i class="fas fa-filter me-2"></i>Filtrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Entrevistas -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 fw-bold text-primary">
+                <i class="fas fa-list me-2"></i>Entrevistas Programadas
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if entrevistas %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Candidato</th>
+                            <th>Vacante</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entrevista in entrevistas %}
+                        <tr>
+                            <td>
+                                <i class="fas fa-calendar me-1 text-primary"></i>
+                                {{ entrevista.fecha_entrevista.strftime('%d/%m/%Y %H:%M') }}
+                            </td>
+                            <td>
+                                <strong>{{ entrevista.nom_candidato }}</strong><br>
+                                <small class="text-muted">{{ entrevista.email_candidato }}</small>
+                            </td>
+                            <td>{{ entrevista.titulo_vacante }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if entrevista.id_estadoentrevista == 1 %}bg-warning
+                                    {% elif entrevista.id_estadoentrevista == 2 %}bg-info
+                                    {% elif entrevista.id_estadoentrevista == 3 %}bg-success
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ entrevista.estado_entrevista }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    {% if entrevista.id_estadoentrevista in [1,2] %}
+                                    <a href="{{ url_for('registrar_feedback_entrevista', id=entrevista.id_entrevista) }}" 
+                                       class="btn btn-primary" title="Registrar Feedback">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('api_obtener_entrevista', id=entrevista.id_entrevista) }}" 
+                                       class="btn btn-info" title="Ver Detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No tienes entrevistas programadas</h5>
+                <p class="text-muted">Cuando te asignen entrevistas, aparecerán aquí.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Estadísticas Personales -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card border-start-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
+                                Entrevistas Este Mes
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800" id="entrevistasMes">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-start-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                                Pendientes de Feedback
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800" id="pendientesFeedback">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-start-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                                Puntuación Promedio
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800" id="puntuacionPromedio">0.0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-star fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar estadísticas personales
+    fetch('/api/entrevistador/estadisticas')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('entrevistasMes').textContent = data.estadisticas.entrevistas_mes;
+                document.getElementById('pendientesFeedback').textContent = data.estadisticas.pendientes_feedback;
+                document.getElementById('puntuacionPromedio').textContent = data.estadisticas.puntuacion_promedio;
+            }
+        });
+});
+</script>
+{% endblock %}

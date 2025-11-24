@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario de Entrevistas - Sistema de Reclutamiento</title>
+    
+    <!-- FullCalendar CSS -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+    <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+    <style>
+        /* ======== VARIABLES Y ESTILOS GLOBALES ======== */
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4895ef;
+            --info-color: #17a2b8;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --text-muted: #6c757d;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* ======== ESTILOS ESPECÍFICOS PARA CALENDARIO ======== */
+        .calendar-main-container {
+            min-height: 80vh;
+            padding: 1.5rem;
+        }
+
+        .calendar-container {
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .calendar-container:hover {
+            box-shadow: var(--shadow-hover);
+        }
+
+        .calendar-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 16px 16px 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calendar-header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(40%, -40%);
+        }
+
+        .calendar-header h2 {
+            margin: 0;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .calendar-header h2 i {
+            margin-right: 0.75rem;
+            font-size: 1.8rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .calendar-content {
+            padding: 2rem;
+        }
+
+        .calendar-sidebar {
+            background: var(--light-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            height: fit-content;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .calendar-sidebar:hover {
+            box-shadow: var(--shadow-hover);
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+            border-left: 5px solid var(--accent-color);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .stats-card::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 60px;
+            height: 60px;
+            background: rgba(67, 97, 238, 0.05);
+            border-radius: 50%;
+            transform: translate(30%, -30%);
+        }
+
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-label {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .entrevista-hoy {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--accent-color);
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .entrevista-hoy::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-color);
+            transition: var(--transition);
+        }
+
+        .entrevista-hoy:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .entrevista-hoy .hora {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .entrevista-hoy .candidato {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 0.25rem;
+        }
+
+        .event-legend {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9em;
+            background-color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: var(--transition);
+        }
+
+        .event-legend:hover {
+            transform: translateX(3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            margin-right: 12px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .filter-buttons .btn {
+            margin-bottom: 0.5rem;
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .filter-buttons .btn::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.7;
+        }
+
+        .filter-buttons .btn:hover {
+            transform: translateX(5px);
+        }
+
+        /* ======== ESTILOS CRÍTICOS PARA FULLCALENDAR ======== */
+        #calendar-container {
+            width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: var(--transition);
+        }
+
+        #calendar-container:hover {
+            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+        }
+
+        #calendar {
+            width: 100% !important;
+            margin: 0 !important;
+        }
+
+        /* Toolbar del calendario */
+        .fc .fc-toolbar {
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 1.5rem !important;
+            flex-direction: row;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .fc .fc-toolbar.fc-header-toolbar {
+            margin-bottom: 1.5em;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0.5rem 0;
+        }
+
+        .fc .fc-button {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            color: var(--dark-color);
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            transition: var(--transition);
+            margin: 0.2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .fc .fc-button:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+        }
+
+        .fc .fc-button:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .fc .fc-button-active {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        /* Vista de mes */
+        .fc .fc-daygrid {
+            background: white;
+        }
+
+        .fc .fc-daygrid-body {
+            width: 100% !important;
+        }
+
+        .fc .fc-daygrid-day-frame {
+            min-height: 120px;
+            padding: 8px;
+            transition: var(--transition);
+        }
+
+        .fc .fc-daygrid-day:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+
+        .fc .fc-daygrid-day {
+            border: 1px solid #e9ecef !important;
+        }
+
+        .fc .fc-daygrid-day-number {
+            padding: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+            transition: var(--transition);
+        }
+
+        .fc .fc-day-today {
+            background-color: rgba(67, 97, 238, 0.1) !important;
+        }
+
+        .fc .fc-day-today .fc-daygrid-day-number {
+            color: var(--accent-color);
+            font-weight: 700;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Eventos */
+        .fc .fc-event {
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 500;
+            padding: 6px 8px;
+            margin: 2px 0;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .fc .fc-event:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .fc .fc-event-main {
+            padding: 2px 4px;
+        }
+
+        /* Estados de entrevista para FullCalendar */
+        .estado-programada {
+            background-color: var(--info-color);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .estado-en-progreso {
+            background-color: var(--warning-color);
+            border-left: 4px solid #e67e22;
+        }
+
+        .estado-completada {
+            background-color: var(--success-color);
+            border-left: 4px solid #27ae60;
+        }
+
+        .estado-cancelada {
+            background-color: var(--danger-color);
+            border-left: 4px solid #c0392b;
+        }
+
+        /* Cabecera de días de la semana */
+        .fc .fc-col-header-cell {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            padding: 12px 0;
+        }
+
+        .fc .fc-col-header-cell-cushion {
+            color: white;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 8px 4px;
+        }
+
+        /* Vista de lista */
+        .fc .fc-list-event:hover td {
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .calendar-main-container {
+                padding: 1rem;
+            }
+            
+            .calendar-content {
+                padding: 1rem;
+            }
+            
+            .calendar-header {
+                padding: 1.25rem 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .calendar-sidebar {
+                margin-bottom: 2rem;
+            }
+            
+            .fc .fc-toolbar {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .fc-toolbar-chunk {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+            
+            .calendar-header .btn-group {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .calendar-header .btn {
+                margin-bottom: 0.5rem;
+                width: 100%;
+            }
+
+            .fc .fc-daygrid-day-frame {
+                min-height: 80px;
+            }
+            
+            #calendar-container {
+                padding: 1rem;
+            }
+        }
+
+        /* Estados para badges */
+        .badge-estado-programada {
+            background-color: var(--info-color);
+            color: white;
+        }
+
+        .badge-estado-en-progreso {
+            background-color: var(--warning-color);
+            color: white;
+        }
+
+        .badge-estado-completada {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .badge-estado-cancelada {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .section-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--accent-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title i {
+            margin-right: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        /* Loading animation */
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(67, 97, 238, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Botones mejorados */
+        .btn-accent {
+            background: linear-gradient(135deg, var(--accent-color) 0%, #3a86ff 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: 0 4px 8px rgba(58, 134, 255, 0.3);
+        }
+
+        .btn-accent:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(58, 134, 255, 0.4);
+            color: white;
+        }
+
+        /* Toast notifications mejoradas */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .custom-toast {
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            overflow: hidden;
+            border: none;
+        }
+
+        /* Animaciones para elementos */
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mejoras para el modal */
+        .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 16px 16px 0 0;
+            padding: 1.5rem;
+        }
+
+        .modal-header .btn-close {
+            filter: invert(1);
+        }
+    </style>
+</head>
+<body>
+    <div class="calendar-main-container">
+        <div class="calendar-container animate__animated animate__fadeIn">
+            <div class="calendar-header">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <h2><i class="fas fa-calendar-alt me-2"></i>Calendario de Entrevistas</h2>
+                    <div class="btn-group mt-2 mt-md-0">
+                        <button class="btn btn-light" onclick="recargarCalendario()" id="btnRecargar">
+                            <i class="fas fa-sync-alt me-1"></i>Actualizar
+                        </button>
+                        <button class="btn btn-accent" onclick="window.location.href='/entrevistas'">
+                            <i class="fas fa-list me-1"></i>Ver Lista
+                        </button>
+                        <button class="btn btn-success" onclick="window.location.href='/entrevistas/agregar'">
+                            <i class="fas fa-plus me-1"></i>Nueva Entrevista
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calendar-content">
+                <div class="row">
+                    <!-- Sidebar con información y controles -->
+                    <div class="col-lg-3 mb-4">
+                        <div class="calendar-sidebar animate__animated animate__fadeInLeft">
+                            <!-- Estadísticas rápidas -->
+                            <div class="stats-card">
+                                <div class="stats-number" id="totalHoy">0</div>
+                                <div class="stats-label">Entrevistas Hoy</div>
+                            </div>
+
+                            <!-- Próximas entrevistas de hoy -->
+                            <h5 class="section-title"><i class="fas fa-clock me-2"></i>Entrevistas de Hoy</h5>
+                            <div id="entrevistas-hoy">
+                                <div class="text-center py-3">
+                                    <div class="loading-spinner"></div>
+                                    <p class="mt-2 text-muted">Cargando entrevistas...</p>
+                                </div>
+                            </div>
+
+                            <!-- Leyenda de estados -->
+                            <h5 class="section-title mt-4"><i class="fas fa-palette me-2"></i>Leyenda de Estados</h5>
+                            <div class="event-legend">
+                                <div class="legend-color" style="background-color: var(--info-color);"></div>
+                                <span>Programada</span>
+                            </div>
+                            <div class="event-legend">
+                                <div class="legend-color" style="background-color: var(--warning-color);"></div>
+                                <span>En Progreso</span>
+                            </div>
+                            <div class="event-legend">
+                                <div class="legend-color" style="background-color: var(--success-color);"></div>
+                                <span>Completada</span>
+                            </div>
+                            <div class="event-legend">
+                                <div class="legend-color" style="background-color: var(--danger-color);"></div>
+                                <span>Cancelada</span>
+                            </div>
+
+                            <!-- Filtros rápidos -->
+                            <h5 class="section-title mt-4"><i class="fas fa-filter me-2"></i>Filtros Rápidos</h5>
+                            <div class="filter-buttons">
+                                <button class="btn btn-outline-primary active" onclick="filtrarPorEstado('todos')">
+                                    <i class="fas fa-eye me-1"></i>Ver Todos
+                                </button>
+                                <button class="btn btn-outline-info" onclick="filtrarPorEstado('programada')">
+                                    <i class="fas fa-clock me-1"></i>Solo Programadas
+                                </button>
+                                <button class="btn btn-outline-success" onclick="filtrarPorEstado('completada')">
+                                    <i class="fas fa-check me-1"></i>Solo Completadas
+                                </button>
+                                <button class="btn btn-outline-warning" onclick="filtrarPorEstado('en progreso')">
+                                    <i class="fas fa-spinner me-1"></i>Solo En Progreso
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calendario principal -->
+                    <div class="col-lg-9">
+                        <div id="calendar-container" class="animate__animated animate__fadeInRight">
+                            <div id="calendar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para detalles de entrevista -->
+    <div class="modal fade" id="modalDetallesEntrevista" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>Detalles de la Entrevista</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detallesEntrevista">
+                    <!-- Los detalles se cargarán via JavaScript -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary" id="btnEditarEntrevista" style="display: none;">
+                        <i class="fas fa-edit me-1"></i>Editar Entrevista
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- FullCalendar JS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/es.js'></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar calendario
+            inicializarCalendario();
+            
+            // Cargar entrevistas de hoy
+            cargarEntrevistasHoy();
+            
+            // Añadir efecto de carga al botón de recargar
+            document.getElementById('btnRecargar').addEventListener('click', function() {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Actualizando...';
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualizar';
+                }, 1000);
+            });
+        });
+
+        let calendar;
+        let eventosActuales = [];
+        let filtroActivo = 'todos';
+
+        function inicializarCalendario() {
+            const calendarEl = document.getElementById('calendar');
+            
+            // Configuración mejorada del calendario
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                locale: 'es',
+                timeZone: 'local',
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                },
+                buttonText: {
+                    today: 'Hoy',
+                    month: 'Mes',
+                    week: 'Semana',
+                    day: 'Día',
+                    list: 'Lista'
+                },
+                views: {
+                    timeGridWeek: {
+                        type: 'timeGrid',
+                        duration: { days: 7 },
+                        buttonText: 'Semana'
+                    },
+                    timeGridDay: {
+                        type: 'timeGrid',
+                        duration: { days: 1 },
+                        buttonText: 'Día'
+                    },
+                    listWeek: {
+                        type: 'list',
+                        duration: { days: 7 },
+                        buttonText: 'Lista'
+                    }
+                },
+                navLinks: true,
+                editable: false,
+                selectable: false,
+                nowIndicator: true,
+                dayMaxEvents: 4,
+                weekends: true,
+                height: 'auto',
+                contentHeight: 'auto',
+                aspectRatio: 1.5,
+                events: function(fetchInfo, successCallback, failureCallback) {
+                    cargarEventosCalendario(fetchInfo, successCallback, failureCallback);
+                },
+                eventClick: function(info) {
+                    mostrarDetallesEntrevista(info.event.id);
+                },
+                eventDidMount: function(info) {
+                    // Aplicar clases CSS según el estado
+                    const estado = info.event.extendedProps.estado_entrevista;
+                    if (estado) {
+                        const estadoClass = getClaseEstado(estado);
+                        info.el.classList.add(estadoClass);
+                    }
+                    
+                    // Agregar tooltip con información adicional
+                    if (info.event.extendedProps.candidato) {
+                        info.el.setAttribute('data-bs-toggle', 'tooltip');
+                        info.el.setAttribute('title', 
+                            `${info.event.extendedProps.candidato}\n${info.event.extendedProps.vacante || ''}\n${info.event.extendedProps.entrevistador || ''}`
+                        );
+                        
+                        // Inicializar tooltip
+                        new bootstrap.Tooltip(info.el);
+                    }
+                    
+                    // Añadir animación de entrada
+                    info.el.classList.add('animate__animated', 'animate__fadeIn');
+                },
+                loading: function(isLoading) {
+                    if (isLoading) {
+                        document.getElementById('calendar').classList.add('fc-loading');
+                    } else {
+                        document.getElementById('calendar').classList.remove('fc-loading');
+                    }
+                },
+                datesSet: function(info) {
+                    // Actualizar título con animación
+                    const titleEl = document.querySelector('.fc-toolbar-title');
+                    if (titleEl) {
+                        titleEl.classList.add('animate__animated', 'animate__pulse');
+                        setTimeout(() => {
+                            titleEl.classList.remove('animate__animated', 'animate__pulse');
+                        }, 500);
+                    }
+                }
+            });
+
+            calendar.render();
+            
+            // Forzar un redimensionamiento después de la renderización
+            setTimeout(() => {
+                calendar.updateSize();
+            }, 100);
+        }
+
+        // Datos de ejemplo para demostración
+        const eventosEjemplo = [
+            {
+                id: 1,
+                title: 'Entrevista - Juan Pérez',
+                start: new Date().toISOString().split('T')[0] + 'T10:00:00',
+                end: new Date().toISOString().split('T')[0] + 'T11:00:00',
+                extendedProps: {
+                    estado_entrevista: 'programada',
+                    candidato: 'Juan Pérez',
+                    vacante: 'Desarrollador Frontend',
+                    entrevistador: 'María García'
+                }
+            },
+            {
+                id: 2,
+                title: 'Entrevista - Ana López',
+                start: new Date().toISOString().split('T')[0] + 'T14:00:00',
+                end: new Date().toISOString().split('T')[0] + 'T15:00:00',
+                extendedProps: {
+                    estado_entrevista: 'programada',
+                    candidato: 'Ana López',
+                    vacante: 'Diseñador UX',
+                    entrevistador: 'Carlos Rodríguez'
+                }
+            }
+        ];
+
+        function cargarEventosCalendario(fetchInfo, successCallback, failureCallback) {
+            // En una implementación real, aquí harías una llamada a tu API
+            // Por ahora usamos datos de ejemplo
+            try {
+                eventosActuales = eventosEjemplo;
+                successCallback(eventosEjemplo);
+                
+                // Actualizar contador de entrevistas hoy
+                const hoy = new Date().toISOString().split('T')[0];
+                const entrevistasHoy = eventosEjemplo.filter(evento => 
+                    evento.start && evento.start.startsWith(hoy)
+                ).length;
+                document.getElementById('totalHoy').textContent = entrevistasHoy;
+                
+                // Añadir animación al contador
+                const totalHoyEl = document.getElementById('totalHoy');
+                totalHoyEl.classList.add('animate__animated', 'animate__pulse');
+                setTimeout(() => {
+                    totalHoyEl.classList.remove('animate__animated', 'animate__pulse');
+                }, 500);
+            } catch (error) {
+                failureCallback(error);
+                mostrarError('Error al cargar eventos');
+            }
+        }
+
+        function cargarEntrevistasHoy() {
+            // En una implementación real, aquí harías una llamada a tu API
+            // Por ahora usamos datos de ejemplo
+            try {
+                const container = document.getElementById('entrevistas-hoy');
+                const entrevistasHoy = eventosEjemplo.filter(evento => {
+                    const hoy = new Date().toISOString().split('T')[0];
+                    return evento.start && evento.start.startsWith(hoy);
+                });
+                
+                if (entrevistasHoy.length > 0) {
+                    let html = '';
+                    
+                    entrevistasHoy.forEach((entrevista, index) => {
+                        const hora = entrevista.start ? entrevista.start.substring(11, 16) : '--:--';
+                        const estadoClass = getClaseBadgeEstado(entrevista.extendedProps.estado_entrevista);
+                        
+                        html += `
+                            <div class="entrevista-hoy animate__animated animate__fadeIn" style="animation-delay: ${index * 0.1}s" onclick="mostrarDetallesEntrevista(${entrevista.id})">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="hora">${hora}</div>
+                                        <div class="candidato">${entrevista.extendedProps.candidato}</div>
+                                        <div class="text-muted small">${entrevista.extendedProps.vacante}</div>
+                                        <div class="text-muted small">${entrevista.extendedProps.entrevistador}</div>
+                                    </div>
+                                    <span class="badge ${estadoClass}">${entrevista.extendedProps.estado_entrevista}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-3 animate__animated animate__fadeIn">
+                            <i class="fas fa-calendar-times fa-2x text-muted mb-2"></i>
+                            <p class="text-muted">No hay entrevistas programadas para hoy</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('entrevistas-hoy').innerHTML = `
+                    <div class="text-center py-3">
+                        <i class="fas fa-exclamation-triangle text-warning mb-2"></i>
+                        <p class="text-muted">Error al cargar las entrevistas</p>
+                    </div>
+                `;
+            }
+        }
+
+        function getClaseEstado(estado) {
+            switch(estado.toLowerCase()) {
+                case 'programada': return 'estado-programada';
+                case 'en progreso': return 'estado-en-progreso';
+                case 'completada': return 'estado-completada';
+                case 'cancelada': return 'estado-cancelada';
+                default: return 'estado-programada';
+            }
+        }
+
+        function getClaseBadgeEstado(estado) {
+            switch(estado.toLowerCase()) {
+                case 'programada': return 'badge-estado-programada';
+                case 'en progreso': return 'badge-estado-en-progreso';
+                case 'completada': return 'badge-estado-completada';
+                case 'cancelada': return 'badge-estado-cancelada';
+                default: return 'badge-estado-programada';
+            }
+        }
+
+        function mostrarDetallesEntrevista(idEntrevista) {
+            // En una implementación real, aquí harías una llamada a tu API
+            // Por ahora usamos datos de ejemplo
+            try {
+                const entrevista = eventosEjemplo.find(e => e.id === idEntrevista);
+                if (entrevista) {
+                    const fecha = new Date(entrevista.start);
+                    const fechaFormateada = fecha.toLocaleDateString('es-ES', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    const estadoClass = getClaseBadgeEstado(entrevista.extendedProps.estado_entrevista);
+                    
+                    const detallesHTML = `
+                        <div class="row animate-fade-in">
+                            <div class="col-md-6">
+                                <h6 class="section-title">Información de la Entrevista</h6>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>ID:</th>
+                                        <td>${entrevista.id}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Fecha y Hora:</th>
+                                        <td>${fechaFormateada}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Estado:</th>
+                                        <td><span class="badge ${estadoClass}">${entrevista.extendedProps.estado_entrevista}</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="section-title">Participantes</h6>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>Candidato:</th>
+                                        <td>${entrevista.extendedProps.candidato}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Vacante:</th>
+                                        <td>${entrevista.extendedProps.vacante}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Entrevistador:</th>
+                                        <td>${entrevista.extendedProps.entrevistador}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('detallesEntrevista').innerHTML = detallesHTML;
+                    
+                    // Mostrar botón de editar
+                    const btnEditar = document.getElementById('btnEditarEntrevista');
+                    btnEditar.style.display = 'inline-block';
+                    btnEditar.onclick = function() {
+                        window.location.href = `/entrevistas/editar/${idEntrevista}`;
+                    };
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('modalDetallesEntrevista'));
+                    modal.show();
+                } else {
+                    mostrarError('No se encontró la entrevista');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarError('Error al cargar los detalles de la entrevista');
+            }
+        }
+
+        function filtrarPorEstado(estado) {
+            // Actualizar botones activos
+            document.querySelectorAll('.filter-buttons .btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            filtroActivo = estado;
+            
+            if (estado === 'todos') {
+                calendar.removeAllEventSources();
+                calendar.addEventSource(eventosEjemplo);
+            } else {
+                const eventosFiltrados = eventosEjemplo.filter(evento => 
+                    evento.extendedProps.estado_entrevista === estado
+                );
+                calendar.removeAllEventSources();
+                calendar.addEventSource(eventosFiltrados);
+            }
+            
+            // Añadir animación al calendario
+            const calendarContainer = document.getElementById('calendar-container');
+            calendarContainer.classList.add('animate__animated', 'animate__pulse');
+            setTimeout(() => {
+                calendarContainer.classList.remove('animate__animated', 'animate__pulse');
+            }, 500);
+        }
+
+        function recargarCalendario() {
+            calendar.refetchEvents();
+            cargarEntrevistasHoy();
+            mostrarExito('Calendario actualizado correctamente');
+        }
+
+        function mostrarError(mensaje) {
+            // Crear toast personalizado
+            const toast = document.createElement('div');
+            toast.className = 'toast custom-toast align-items-center text-white bg-danger border-0';
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-center">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        ${mensaje}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            
+            // Añadir al contenedor de toasts
+            let toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container';
+                document.body.appendChild(toastContainer);
+            }
+            
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            
+            // Remover después de que se oculte
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+
+        function mostrarExito(mensaje) {
+            // Crear toast personalizado
+            const toast = document.createElement('div');
+            toast.className = 'toast custom-toast align-items-center text-white bg-success border-0';
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        ${mensaje}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            
+            // Añadir al contenedor de toasts
+            let toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container';
+                document.body.appendChild(toastContainer);
+            }
+            
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            
+            // Remover después de que se oculte
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+
+        // Redimensionar calendario cuando cambia el tamaño de la ventana
+        window.addEventListener('resize', function() {
+            if (calendar) {
+                calendar.updateSize();
+            }
+        });
+    </script>
+</body>
+</html>

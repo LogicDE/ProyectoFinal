@@ -96,43 +96,505 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Obtener estadísticas para el dashboard
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
+    cursor = None
     try:
-        # Usar vistas existentes en lugar de stored procedures
-        cursor.execute("SELECT COUNT(*) as total FROM candidatos")
-        total_candidatos = cursor.fetchone()['total']
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        user_role = session.get('id_rolsistema')
         
-        cursor.execute("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
-        vacantes_activas = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM vCandidatosEnProceso")
-        en_proceso = cursor.fetchone()['total']
-        
+        if user_role == 1:  # Admin
+            return render_admin_dashboard(cursor)
+        elif user_role in [2, 9]:  # Reclutador/Recruiter
+            return render_recruiter_dashboard(cursor)
+        elif user_role == 10:  # Hiring Manager
+            return render_hiring_manager_dashboard(cursor)
+        elif user_role == 3:  # Entrevistador
+            return render_entrevistador_dashboard(cursor)
+        elif user_role == 11:  # Auditor
+            return render_auditor_dashboard(cursor)
+        else:
+            # Dashboard genérico para roles no especificados
+            return render_generic_dashboard(cursor)
+            
     except Exception as e:
-        # Fallback si las vistas no existen
-        cursor.execute("SELECT COUNT(*) as total FROM candidatos")
-        total_candidatos = cursor.fetchone()['total']
+        print(f"Error en dashboard: {str(e)}")
+        import traceback
+        print(f"Traceback completo: {traceback.format_exc()}")
         
-        cursor.execute("SELECT COUNT(*) as total FROM vacantes")
-        vacantes_activas = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM postulaciones WHERE id_etapa NOT IN (11,12)")
-        en_proceso = cursor.fetchone()['total']
-    
-    cursor.close()
-    
-    return render_template('dashboard.html', 
-                         total_candidatos=total_candidatos,
-                         vacantes_activas=vacantes_activas,
-                         en_proceso=en_proceso)
+        # En caso de error, usar valores por defecto para dashboard básico
+        flash('Error al cargar datos completos del dashboard. Mostrando vista básica.', 'warning')
+        return render_template('dashboard.html',
+                             total_candidatos=0,
+                             vacantes_activas=0,
+                             en_proceso=0,
+                             postulaciones_hoy=0)
+    finally:
+        if cursor:
+            cursor.close()
 
-# RUTAS PARA CANDIDATOS
+def render_admin_dashboard(cursor):
+    """Dashboard completo para Administrador con manejo robusto de errores"""
+    try:
+        print("DEBUG: Iniciando render_admin_dashboard")
+        
+        # Función auxiliar para ejecutar consultas de forma segura
+        def safe_query(query, params=None, default=0):
+            try:
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+                result = cursor.fetchone()
+                return result['total'] if result and 'total' in result else default
+            except Exception as e:
+                print(f"ERROR en consulta: {query} - Error: {e}")
+                return default
+
+        # Estadísticas generales con manejo individual de errores
+        print("DEBUG: Ejecutando consulta de candidatos")
+        total_candidatos = safe_query("SELECT COUNT(*) as total FROM candidatos")
+        
+        print("DEBUG: Ejecutando consulta de vacantes activas")
+        vacantes_activas = safe_query("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
+        
+        print("DEBUG: Ejecutando consulta de usuarios activos")
+        usuarios_activos = safe_query("SELECT COUNT(*) as total FROM usuarios WHERE activo = 1")
+        
+        print("DEBUG: Ejecutando consulta de postulaciones hoy")
+        postulaciones_hoy = safe_query("SELECT COUNT(*) as total FROM postulaciones WHERE DATE(fecha_postula) = CURDATE()")
+        
+        # Actividad reciente
+        print("DEBUG: Ejecutando consulta de actividad reciente")
+        try:
+            cursor.execute("""
+                SELECT 'Candidato' as tipo, nom_candidato as nombre, fecha_creacion as fecha
+                FROM candidatos 
+                ORDER BY fecha_creacion DESC 
+                LIMIT 5
+            """)
+            actividad_reciente = cursor.fetchall()
+            print(f"DEBUG: Actividad reciente encontrada: {len(actividad_reciente)} registros")
+        except Exception as e:
+            print(f"ERROR en actividad reciente: {e}")
+            actividad_reciente = []
+        
+        # Próximas entrevistas
+        print("DEBUG: Ejecutando consulta de próximas entrevistas")
+        try:
+            cursor.execute("""
+                SELECT e.fecha_entrevista, c.nom_candidato, v.titulo_vacante, ent.nom_entrevistador
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+                WHERE e.fecha_entrevista >= CURDATE()
+                ORDER BY e.fecha_entrevista ASC
+                LIMIT 5
+            """)
+            proximas_entrevistas = cursor.fetchall()
+            print(f"DEBUG: Próximas entrevistas encontradas: {len(proximas_entrevistas)} registros")
+        except Exception as e:
+            print(f"ERROR en próximas entrevistas: {e}")
+            proximas_entrevistas = []
+        
+        print(f"DEBUG: Datos obtenidos - Candidatos: {total_candidatos}, Vacantes: {vacantes_activas}, Usuarios: {usuarios_activos}, Postulaciones hoy: {postulaciones_hoy}")
+        
+        return render_template('dashboard_admin.html',
+                             total_candidatos=total_candidatos,
+                             vacantes_activas=vacantes_activas,
+                             usuarios_activos=usuarios_activos,
+                             postulaciones_hoy=postulaciones_hoy,
+                             actividad_reciente=actividad_reciente,
+                             proximas_entrevistas=proximas_entrevistas)
+                             
+    except Exception as e:
+        print(f"ERROR CRÍTICO en render_admin_dashboard: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
+        raise  # Re-lanza la excepción para manejarla en el nivel superior
+
+def render_recruiter_dashboard(cursor):
+    """Dashboard para Reclutador/Recruiter con manejo robusto de errores"""
+    try:
+        print("DEBUG: Iniciando render_recruiter_dashboard")
+        
+        # Función auxiliar para ejecutar consultas de forma segura
+        def safe_query(query, params=None, default=0):
+            try:
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+                result = cursor.fetchone()
+                return result['total'] if result and 'total' in result else default
+            except Exception as e:
+                print(f"ERROR en consulta: {query} - Error: {e}")
+                return default
+
+        # Estadísticas básicas
+        print("DEBUG: Ejecutando consultas básicas para recruiter")
+        total_candidatos = safe_query("SELECT COUNT(*) as total FROM candidatos")
+        vacantes_activas = safe_query("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
+        postulaciones_hoy = safe_query("SELECT COUNT(*) as total FROM postulaciones WHERE DATE(fecha_postula) = CURDATE()")
+        en_proceso = safe_query("SELECT COUNT(*) as total FROM postulaciones WHERE id_etapa IN (2,3,4,5)")
+        
+        # Candidatos recientes
+        print("DEBUG: Ejecutando consulta de candidatos recientes")
+        try:
+            cursor.execute("""
+                SELECT nom_candidato, email, fecha_creacion 
+                FROM candidatos 
+                ORDER BY fecha_creacion DESC 
+                LIMIT 5
+            """)
+            candidatos_recientes = cursor.fetchall()
+            print(f"DEBUG: Candidatos recientes encontrados: {len(candidatos_recientes)}")
+        except Exception as e:
+            print(f"ERROR en candidatos recientes: {e}")
+            candidatos_recientes = []
+        
+        # Postulaciones pendientes de revisión
+        print("DEBUG: Ejecutando consulta de postulaciones pendientes")
+        try:
+            cursor.execute("""
+                SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante, e.nom_etapa
+                FROM postulaciones p
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                WHERE p.id_etapa IN (1,2)  # Postulada, En revisión
+                ORDER BY p.fecha_postula DESC
+                LIMIT 5
+            """)
+            postulaciones_pendientes = cursor.fetchall()
+            print(f"DEBUG: Postulaciones pendientes encontradas: {len(postulaciones_pendientes)}")
+        except Exception as e:
+            print(f"ERROR en postulaciones pendientes: {e}")
+            postulaciones_pendientes = []
+        
+        print(f"DEBUG: Datos recruiter - Candidatos: {total_candidatos}, Vacantes: {vacantes_activas}, Postulaciones hoy: {postulaciones_hoy}, En proceso: {en_proceso}")
+        
+        return render_template('dashboard_recruiter.html',
+                             total_candidatos=total_candidatos,
+                             vacantes_activas=vacantes_activas,
+                             postulaciones_hoy=postulaciones_hoy,
+                             en_proceso=en_proceso,
+                             candidatos_recientes=candidatos_recientes,
+                             postulaciones_pendientes=postulaciones_pendientes)
+                             
+    except Exception as e:
+        print(f"ERROR CRÍTICO en render_recruiter_dashboard: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
+        raise
+
+def render_hiring_manager_dashboard(cursor):
+    """Dashboard para Hiring Manager con manejo robusto de errores"""
+    try:
+        print("DEBUG: Iniciando render_hiring_manager_dashboard")
+        
+        # Función auxiliar para ejecutar consultas de forma segura
+        def safe_query(query, params=None, default=0):
+            try:
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+                result = cursor.fetchone()
+                return result['total'] if result and 'total' in result else default
+            except Exception as e:
+                print(f"ERROR en consulta: {query} - Error: {e}")
+                return default
+
+        # Estadísticas básicas
+        print("DEBUG: Ejecutando consultas básicas para hiring manager")
+        vacantes_activas = safe_query("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
+        ofertas_pendientes = safe_query("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 1")
+        ofertas_aceptadas = safe_query("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 2")
+        
+        # Candidatos en selección
+        print("DEBUG: Ejecutando consulta de candidatos en selección")
+        try:
+            cursor.execute("""
+                SELECT COUNT(DISTINCT p.id_candidato) as total 
+                FROM postulaciones p
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                WHERE p.id_etapa IN (4,5,6)  # En proceso de selección avanzada
+            """)
+            result = cursor.fetchone()
+            candidatos_en_seleccion = result['total'] if result else 0
+        except Exception as e:
+            print(f"ERROR en candidatos en selección: {e}")
+            candidatos_en_seleccion = 0
+        
+        # Vacantes con más postulaciones
+        print("DEBUG: Ejecutando consulta de vacantes populares")
+        try:
+            cursor.execute("""
+                SELECT v.titulo_vacante, COUNT(p.id_postulacion) as postulaciones
+                FROM vacantes v
+                LEFT JOIN postulaciones p ON v.id_vacante = p.id_vacante
+                WHERE v.id_estadovacante = 1
+                GROUP BY v.id_vacante, v.titulo_vacante
+                ORDER BY postulaciones DESC
+                LIMIT 5
+            """)
+            vacantes_populares = cursor.fetchall()
+            print(f"DEBUG: Vacantes populares encontradas: {len(vacantes_populares)}")
+        except Exception as e:
+            print(f"ERROR en vacantes populares: {e}")
+            vacantes_populares = []
+        
+        # Candidatos finalistas
+        print("DEBUG: Ejecutando consulta de candidatos finalistas")
+        try:
+            cursor.execute("""
+                SELECT c.nom_candidato, v.titulo_vacante, e.nom_etapa
+                FROM postulaciones p
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                WHERE p.id_etapa = 5  # Finalista
+                ORDER BY p.fecha_postula DESC
+                LIMIT 5
+            """)
+            candidatos_finalistas = cursor.fetchall()
+            print(f"DEBUG: Candidatos finalistas encontrados: {len(candidatos_finalistas)}")
+        except Exception as e:
+            print(f"ERROR en candidatos finalistas: {e}")
+            candidatos_finalistas = []
+        
+        print(f"DEBUG: Datos hiring manager - Vacantes: {vacantes_activas}, En selección: {candidatos_en_seleccion}, Ofertas pendientes: {ofertas_pendientes}")
+        
+        return render_template('dashboard_hiring_manager.html',
+                             vacantes_activas=vacantes_activas,
+                             candidatos_en_seleccion=candidatos_en_seleccion,
+                             ofertas_pendientes=ofertas_pendientes,
+                             ofertas_aceptadas=ofertas_aceptadas,
+                             vacantes_populares=vacantes_populares,
+                             candidatos_finalistas=candidatos_finalistas)
+                             
+    except Exception as e:
+        print(f"ERROR CRÍTICO en render_hiring_manager_dashboard: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
+        raise
+
+def render_entrevistador_dashboard(cursor):
+    """Dashboard para Entrevistador con manejo robusto de errores"""
+    try:
+        print("DEBUG: Iniciando render_entrevistador_dashboard")
+        
+        # Función auxiliar para ejecutar consultas de forma segura
+        def safe_query(query, params=None, default=0):
+            try:
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+                result = cursor.fetchone()
+                return result['total'] if result and 'total' in result else default
+            except Exception as e:
+                print(f"ERROR en consulta: {query} - Error: {e}")
+                return default
+
+        # Obtener el ID del entrevistador asociado al usuario
+        print("DEBUG: Obteniendo ID del entrevistador")
+        try:
+            cursor.execute("SELECT id_entrevistador FROM usuarios WHERE id_usuario = %s", (session['id_usuario'],))
+            user_data = cursor.fetchone()
+            
+            if not user_data or not user_data['id_entrevistador']:
+                print("DEBUG: No se encontró entrevistador asociado al usuario")
+                return render_template('dashboard_entrevistador.html', 
+                                     entrevistas_hoy=0,
+                                     proximas_entrevistas=[],
+                                     pendientes_feedback=0,
+                                     historial_entrevistas=[])
+            
+            id_entrevistador = user_data['id_entrevistador']
+            print(f"DEBUG: ID del entrevistador: {id_entrevistador}")
+        except Exception as e:
+            print(f"ERROR obteniendo ID del entrevistador: {e}")
+            return render_template('dashboard_entrevistador.html', 
+                                 entrevistas_hoy=0,
+                                 proximas_entrevistas=[],
+                                 pendientes_feedback=0,
+                                 historial_entrevistas=[])
+        
+        # Estadísticas del entrevistador
+        print("DEBUG: Ejecutando consultas del entrevistador")
+        entrevistas_hoy = safe_query("""
+            SELECT COUNT(*) as total 
+            FROM entrevistas 
+            WHERE id_entrevistador = %s 
+            AND DATE(fecha_entrevista) = CURDATE()
+        """, (id_entrevistador,))
+        
+        pendientes_feedback = safe_query("""
+            SELECT COUNT(*) as total 
+            FROM entrevistas 
+            WHERE id_entrevistador = %s 
+            AND id_estadoentrevista = 2  # Completada
+            AND puntaje IS NULL
+        """, (id_entrevistador,))
+        
+        # Próximas entrevistas
+        print("DEBUG: Ejecutando consulta de próximas entrevistas")
+        try:
+            cursor.execute("""
+                SELECT e.id_entrevista, e.fecha_entrevista, c.nom_candidato, v.titulo_vacante, 
+                       es.nom_estado as estado
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                WHERE e.id_entrevistador = %s 
+                AND e.fecha_entrevista >= CURDATE()
+                ORDER BY e.fecha_entrevista ASC
+                LIMIT 10
+            """, (id_entrevistador,))
+            proximas_entrevistas = cursor.fetchall()
+            print(f"DEBUG: Próximas entrevistas encontradas: {len(proximas_entrevistas)}")
+        except Exception as e:
+            print(f"ERROR en próximas entrevistas: {e}")
+            proximas_entrevistas = []
+        
+        # Historial reciente de entrevistas
+        print("DEBUG: Ejecutando consulta de historial de entrevistas")
+        try:
+            cursor.execute("""
+                SELECT e.fecha_entrevista, c.nom_candidato, v.titulo_vacante, e.puntaje
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                WHERE e.id_entrevistador = %s 
+                AND e.fecha_entrevista < CURDATE()
+                ORDER BY e.fecha_entrevista DESC
+                LIMIT 5
+            """, (id_entrevistador,))
+            historial_entrevistas = cursor.fetchall()
+            print(f"DEBUG: Historial de entrevistas encontrado: {len(historial_entrevistas)}")
+        except Exception as e:
+            print(f"ERROR en historial de entrevistas: {e}")
+            historial_entrevistas = []
+        
+        print(f"DEBUG: Datos entrevistador - Entrevistas hoy: {entrevistas_hoy}, Pendientes feedback: {pendientes_feedback}")
+        
+        return render_template('dashboard_entrevistador.html',
+                             entrevistas_hoy=entrevistas_hoy,
+                             proximas_entrevistas=proximas_entrevistas,
+                             pendientes_feedback=pendientes_feedback,
+                             historial_entrevistas=historial_entrevistas)
+                             
+    except Exception as e:
+        print(f"ERROR CRÍTICO en render_entrevistador_dashboard: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
+        raise
+
+def render_auditor_dashboard(cursor):
+    """Dashboard para Auditor con manejo robusto de errores"""
+    try:
+        print("DEBUG: Iniciando render_auditor_dashboard")
+        
+        # Función auxiliar para ejecutar consultas de forma segura
+        def safe_query(query, params=None, default=0):
+            try:
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+                result = cursor.fetchone()
+                return result['total'] if result and 'total' in result else default
+            except Exception as e:
+                print(f"ERROR en consulta: {query} - Error: {e}")
+                return default
+
+        # Estadísticas generales
+        print("DEBUG: Ejecutando consultas generales para auditor")
+        total_candidatos = safe_query("SELECT COUNT(*) as total FROM candidatos")
+        total_vacantes = safe_query("SELECT COUNT(*) as total FROM vacantes")
+        total_postulaciones = safe_query("SELECT COUNT(*) as total FROM postulaciones")
+        total_entrevistas = safe_query("SELECT COUNT(*) as total FROM entrevistas")
+        total_ofertas = safe_query("SELECT COUNT(*) as total FROM ofertas")
+        total_contratados = safe_query("SELECT COUNT(*) as contratados FROM postulaciones WHERE id_etapa = 11")
+        
+        # Calcular tasa de conversión
+        tasa_conversion = (total_contratados / total_postulaciones * 100) if total_postulaciones > 0 else 0
+        
+        # Fuentes de candidatos
+        print("DEBUG: Ejecutando consulta de fuentes de candidatos")
+        try:
+            cursor.execute("""
+                SELECT f.nom_fuente, COUNT(c.id_candidato) as cantidad
+                FROM fuentes f
+                LEFT JOIN candidatos c ON f.id_fuente = c.id_fuente
+                GROUP BY f.id_fuente, f.nom_fuente
+                ORDER BY cantidad DESC
+                LIMIT 5
+            """)
+            fuentes_candidatos = cursor.fetchall()
+            print(f"DEBUG: Fuentes de candidatos encontradas: {len(fuentes_candidatos)}")
+        except Exception as e:
+            print(f"ERROR en fuentes de candidatos: {e}")
+            fuentes_candidatos = []
+        
+        # Tiempos promedio
+        print("DEBUG: Ejecutando consulta de tiempos promedio")
+        try:
+            cursor.execute("""
+                SELECT AVG(TIMESTAMPDIFF(DAY, p.fecha_postula, 
+                    COALESCE((SELECT MIN(e.fecha_entrevista) 
+                             FROM entrevistas e 
+                             WHERE e.id_postulacion = p.id_postulacion), 
+                            CURDATE()))) as tiempo_promedio
+                FROM postulaciones p
+                WHERE p.id_etapa >= 3
+            """)
+            result = cursor.fetchone()
+            tiempo_promedio = result['tiempo_promedio'] if result and result['tiempo_promedio'] else 0
+        except Exception as e:
+            print(f"ERROR en tiempos promedio: {e}")
+            tiempo_promedio = 0
+        
+        print(f"DEBUG: Datos auditor - Candidatos: {total_candidatos}, Vacantes: {total_vacantes}, Postulaciones: {total_postulaciones}, Tasa conversión: {tasa_conversion}")
+        
+        return render_template('dashboard_auditor.html',
+                             total_candidatos=total_candidatos,
+                             total_vacantes=total_vacantes,
+                             total_postulaciones=total_postulaciones,
+                             total_entrevistas=total_entrevistas,
+                             total_ofertas=total_ofertas,
+                             total_contratados=total_contratados,
+                             tasa_conversion=round(tasa_conversion, 2),
+                             fuentes_candidatos=fuentes_candidatos,
+                             tiempo_promedio=round(tiempo_promedio, 1))
+                             
+    except Exception as e:
+        print(f"ERROR CRÍTICO en render_auditor_dashboard: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
+        raise
+
+def render_generic_dashboard(cursor):
+    """Dashboard genérico para roles no especificados"""
+    cursor.execute("SELECT COUNT(*) as total FROM candidatos")
+    total_candidatos = cursor.fetchone()['total']
+    
+    cursor.execute("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
+    vacantes_activas = cursor.fetchone()['total']
+    
+    return render_template('dashboard_generic.html',
+                         total_candidatos=total_candidatos,
+                         vacantes_activas=vacantes_activas)
+
 # RUTAS PARA CANDIDATOS - VERSIÓN COMPLETA
 @app.route('/candidatos')
 @login_required
-@role_required([1, 2, 9, 10])
+@role_required([1, 2, 9])
 def candidatos():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
@@ -152,6 +614,65 @@ def candidatos():
         fuentes = cursor.fetchall()
     cursor.close()
     return render_template('candidatos.html', candidatos=candidatos, fuentes=fuentes)
+
+# RUTA PÚBLICA PARA REGISTRO DE CANDIDATOS (SIN LOGIN REQUERIDO)
+@app.route('/registro-candidato', methods=['GET', 'POST'])
+def registro_candidato_publico():
+    if request.method == 'POST':
+        identificacion = request.form['identificacion']
+        nombre = request.form['nombre']
+        email = request.form['email']
+        telefono = request.form.get('telefono', '')
+        id_fuente = request.form.get('id_fuente', 1)  # Fuente por defecto
+        
+        cursor = mysql.connection.cursor()
+        try:
+            # Llamar al stored procedure para crear candidato
+            cursor.callproc('candidatoCrearActualizar', 
+                           [None, identificacion, nombre, email, telefono, id_fuente])
+            mysql.connection.commit()
+            flash('¡Registro exitoso! Ahora puedes postularte a vacantes.', 'success')
+            return redirect(url_for('registro_candidato_publico'))
+        except Exception as e:
+            mysql.connection.rollback()
+            error_msg = str(e)
+            if 'email ya existe' in error_msg.lower():
+                flash('Error: El email ya está registrado. Por favor usa otro email.', 'danger')
+            elif 'identificacion ya existe' in error_msg.lower():
+                flash('Error: La identificación ya está registrada.', 'danger')
+            else:
+                flash(f'Error en el registro: {error_msg}', 'danger')
+        finally:
+            cursor.close()
+    
+    # GET request - mostrar formulario de registro
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT * FROM fuentes ORDER BY nom_fuente")
+        fuentes = cursor.fetchall()
+
+        # Obtener vacantes activas para mostrar en el carrusel
+        cursor.execute("""
+            SELECT 
+                v.*, 
+                d.nom_departamento,
+                (SELECT COUNT(*) FROM postulaciones p WHERE p.id_vacante = v.id_vacante) as num_postulaciones
+            FROM vacantes v 
+            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
+            WHERE v.id_estadovacante = 1 
+            ORDER BY v.fecha_creacion DESC 
+            LIMIT 10
+        """)
+        vacantes_activas = cursor.fetchall()
+        
+    except Exception as e:
+        fuentes = []
+        vacantes_activas = []
+    finally:
+        cursor.close()
+    
+    return render_template('registro_publico.html', fuentes=fuentes, vacantes_activas=vacantes_activas)
+
 
 @app.route('/candidatos/crear', methods=['POST'])
 @login_required
@@ -354,6 +875,8 @@ def vacantes():
                          vacantes=vacantes, 
                          departamentos=departamentos, 
                          estados_vacantes=estados_vacantes)
+
+
 
 @app.route('/vacantes/crear', methods=['POST'])
 @login_required
@@ -727,7 +1250,7 @@ def api_obtener_etapas():
 # RUTAS PARA ENTREVISTAS - VERSIÓN COMPLETA Y MEJORADA
 @app.route('/entrevistas')
 @login_required
-@role_required([1, 2, 9, 10])
+@role_required([1, 2, 9, 10, 3])
 def entrevistas():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
@@ -1867,57 +2390,164 @@ def dashboard_ofertas():
                          monto_promedio=monto_promedio)
 
 
-# RUTA PARA CALENDARIO
+# RUTA PARA CALENDARIO - VERSIÓN MEJORADA
 @app.route('/calendario')
 @login_required
+@role_required([1, 2, 9, 10, 3])
 def calendario():
+    """Calendario de entrevistas con FullCalendar"""
+    return render_template('calendario.html')
+
+@app.route('/api/calendario/eventos')
+@login_required
+def api_calendario_eventos():
+    """API para obtener eventos del calendario en formato FullCalendar"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
+        # Obtener todas las entrevistas con información completa
         cursor.execute("""
-            SELECT e.id_entrevista, e.fecha_entrevista, c.nom_candidato, v.titulo_vacante, 
-                   ent.nom_entrevistador, es.nom_estado as estado_entrevista,
-                   CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as title,
-                   e.fecha_entrevista as start,
-                   DATE_ADD(e.fecha_entrevista, INTERVAL 1 HOUR) as end
+            SELECT 
+                e.id_entrevista,
+                e.fecha_entrevista,
+                DATE_ADD(e.fecha_entrevista, INTERVAL 1 HOUR) as end,
+                c.nom_candidato,
+                v.titulo_vacante,
+                ent.nom_entrevistador,
+                es.nom_estado as estado_entrevista,
+                es.id_estadoentrevista,
+                CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as title,
+                CASE 
+                    WHEN es.id_estadoentrevista = 1 THEN '#3498db'  # Programada - Azul
+                    WHEN es.id_estadoentrevista = 2 THEN '#f39c12'  # En progreso - Naranja
+                    WHEN es.id_estadoentrevista = 3 THEN '#27ae60'  # Completada - Verde
+                    WHEN es.id_estadoentrevista = 4 THEN '#e74c3c'  # Cancelada - Rojo
+                    ELSE '#95a5a6'  # Otros - Gris
+                END as color,
+                CASE 
+                    WHEN es.id_estadoentrevista = 1 THEN '#2980b9'  # Programada - Azul oscuro
+                    WHEN es.id_estadoentrevista = 2 THEN '#e67e22'  # En progreso - Naranja oscuro
+                    WHEN es.id_estadoentrevista = 3 THEN '#229954'  # Completada - Verde oscuro
+                    WHEN es.id_estadoentrevista = 4 THEN '#c0392b'  # Cancelada - Rojo oscuro
+                    ELSE '#7f8c8d'  # Otros - Gris oscuro
+                END as textColor
             FROM entrevistas e
             JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
             JOIN candidatos c ON p.id_candidato = c.id_candidato
             JOIN vacantes v ON p.id_vacante = v.id_vacante
             JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
             JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-            WHERE e.fecha_entrevista >= CURDATE()
+            WHERE e.fecha_entrevista IS NOT NULL
             ORDER BY e.fecha_entrevista
         """)
-        eventos = cursor.fetchall()
-    except Exception as e:
-        print(f"Error al cargar calendario: {e}")
+        eventos_db = cursor.fetchall()
+        
+        # Formatear eventos para FullCalendar
         eventos = []
-    
-    cursor.close()
-    return render_template('calendario.html', eventos=eventos)
+        for evento in eventos_db:
+            eventos.append({
+                'id': evento['id_entrevista'],
+                'title': evento['title'],
+                'start': evento['fecha_entrevista'].isoformat() if evento['fecha_entrevista'] else None,
+                'end': evento['end'].isoformat() if evento['end'] else None,
+                'color': evento['color'],
+                'textColor': evento['textColor'],
+                'extendedProps': {
+                    'candidato': evento['nom_candidato'],
+                    'vacante': evento['titulo_vacante'],
+                    'entrevistador': evento['nom_entrevistador'],
+                    'estado': evento['estado_entrevista'],
+                    'id_estado': evento['id_estadoentrevista']
+                }
+            })
+        
+        return jsonify({
+            'success': True,
+            'eventos': eventos
+        })
+        
+    except Exception as e:
+        print(f"Error al cargar eventos del calendario: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error al cargar eventos: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
 
-
-# RUTAS PARA ENTREVISTADORES
-@app.route('/entrevistadores')
+@app.route('/api/calendario/entrevistas-hoy')
 @login_required
-@role_required([1, 2, 9])
-def entrevistadores():
+def api_entrevistas_hoy():
+    """API para obtener entrevistas del día actual"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cursor.execute("""
-            SELECT e.*, COUNT(ent.id_entrevista) as total_entrevistas
+            SELECT 
+                e.id_entrevista,
+                e.fecha_entrevista,
+                c.nom_candidato,
+                v.titulo_vacante,
+                ent.nom_entrevistador,
+                es.nom_estado as estado_entrevista,
+                TIME(e.fecha_entrevista) as hora
+            FROM entrevistas e
+            JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+            JOIN candidatos c ON p.id_candidato = c.id_candidato
+            JOIN vacantes v ON p.id_vacante = v.id_vacante
+            JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+            JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+            WHERE DATE(e.fecha_entrevista) = CURDATE()
+            ORDER BY e.fecha_entrevista
+        """)
+        entrevistas_hoy = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'entrevistas': entrevistas_hoy
+        })
+        
+    except Exception as e:
+        print(f"Error al cargar entrevistas de hoy: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error al cargar entrevistas: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
+
+# RUTAS PARA ENTREVISTADORES - VERSIÓN COMPLETA
+@app.route('/entrevistadores')
+@login_required
+@role_required([1, 2, 9])  # Admin, Reclutador, Recruiter
+def entrevistadores():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Obtener entrevistadores con información de roles
+        cursor.execute("""
+            SELECT e.*, r.nom_rol, 
+                   COUNT(ent.id_entrevista) as total_entrevistas,
+                   COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes
             FROM entrevistadores e
+            LEFT JOIN roles r ON e.id_rol = r.id_rol
             LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
             GROUP BY e.id_entrevistador
             ORDER BY e.nom_entrevistador
         """)
         entrevistadores = cursor.fetchall()
+        
+        # Obtener roles para el formulario
+        cursor.execute("SELECT * FROM roles ORDER BY nom_rol")
+        roles = cursor.fetchall()
+        
     except Exception as e:
         print(f"Error al cargar entrevistadores: {e}")
         flash(f'Error al cargar entrevistadores: {str(e)}', 'danger')
         entrevistadores = []
+        roles = []
     cursor.close()
-    return render_template('entrevistadores.html', entrevistadores=entrevistadores)
+    return render_template('entrevistadores.html', 
+                         entrevistadores=entrevistadores, 
+                         roles=roles)
 
 @app.route('/entrevistadores/crear', methods=['POST'])
 @login_required
@@ -1925,18 +2555,25 @@ def entrevistadores():
 def crear_entrevistador():
     if request.method == 'POST':
         nom_entrevistador = request.form['nom_entrevistador']
-        email = request.form.get('email', '')
+        email = request.form['email']
         telefono = request.form.get('telefono', '')
-        especialidad = request.form.get('especialidad', '')
+        id_rol = request.form.get('id_rol', 1)  # Rol por defecto
         
         cursor = mysql.connection.cursor()
         try:
-            cursor.execute("""
-                INSERT INTO entrevistadores (nom_entrevistador, email, telefono, especialidad)
-                VALUES (%s, %s, %s, %s)
-            """, (nom_entrevistador, email, telefono, especialidad))
-            mysql.connection.commit()
-            flash('Entrevistador creado exitosamente', 'success')
+            # Verificar si el email ya existe
+            cursor.execute("SELECT COUNT(*) as count FROM entrevistadores WHERE email = %s", (email,))
+            result = cursor.fetchone()
+            
+            if result['count'] > 0:
+                flash('Error: El email ya existe para otro entrevistador', 'danger')
+            else:
+                cursor.execute("""
+                    INSERT INTO entrevistadores (nom_entrevistador, email, telefono, id_rol)
+                    VALUES (%s, %s, %s, %s)
+                """, (nom_entrevistador, email, telefono, id_rol))
+                mysql.connection.commit()
+                flash('Entrevistador creado exitosamente', 'success')
         except Exception as e:
             mysql.connection.rollback()
             flash(f'Error al crear entrevistador: {str(e)}', 'danger')
@@ -1951,19 +2588,27 @@ def crear_entrevistador():
 def editar_entrevistador(id):
     if request.method == 'POST':
         nom_entrevistador = request.form['nom_entrevistador']
-        email = request.form.get('email', '')
+        email = request.form['email']
         telefono = request.form.get('telefono', '')
-        especialidad = request.form.get('especialidad', '')
+        id_rol = request.form.get('id_rol', 1)
         
         cursor = mysql.connection.cursor()
         try:
-            cursor.execute("""
-                UPDATE entrevistadores 
-                SET nom_entrevistador = %s, email = %s, telefono = %s, especialidad = %s
-                WHERE id_entrevistador = %s
-            """, (nom_entrevistador, email, telefono, especialidad, id))
-            mysql.connection.commit()
-            flash('Entrevistador actualizado exitosamente', 'success')
+            # Verificar si el email ya existe en otros entrevistadores
+            cursor.execute("SELECT COUNT(*) as count FROM entrevistadores WHERE email = %s AND id_entrevistador != %s", 
+                         (email, id))
+            result = cursor.fetchone()
+            
+            if result['count'] > 0:
+                flash('Error: El email ya existe para otro entrevistador', 'danger')
+            else:
+                cursor.execute("""
+                    UPDATE entrevistadores 
+                    SET nom_entrevistador = %s, email = %s, telefono = %s, id_rol = %s
+                    WHERE id_entrevistador = %s
+                """, (nom_entrevistador, email, telefono, id_rol, id))
+                mysql.connection.commit()
+                flash('Entrevistador actualizado exitosamente', 'success')
         except Exception as e:
             mysql.connection.rollback()
             flash(f'Error al actualizar entrevistador: {str(e)}', 'danger')
@@ -1976,8 +2621,17 @@ def editar_entrevistador(id):
         # GET request - mostrar formulario de edición
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute("SELECT * FROM entrevistadores WHERE id_entrevistador = %s", (id,))
+            cursor.execute("""
+                SELECT e.*, r.nom_rol
+                FROM entrevistadores e
+                LEFT JOIN roles r ON e.id_rol = r.id_rol
+                WHERE e.id_entrevistador = %s
+            """, (id,))
             entrevistador = cursor.fetchone()
+            
+            cursor.execute("SELECT * FROM roles ORDER BY nom_rol")
+            roles = cursor.fetchall()
+            
         except Exception as e:
             flash(f'Error al cargar entrevistador: {str(e)}', 'danger')
             return redirect(url_for('entrevistadores'))
@@ -1988,7 +2642,9 @@ def editar_entrevistador(id):
             flash('Entrevistador no encontrado', 'danger')
             return redirect(url_for('entrevistadores'))
         
-        return render_template('editar_entrevistador.html', entrevistador=entrevistador)
+        return render_template('editar_entrevistador.html', 
+                             entrevistador=entrevistador, 
+                             roles=roles)
 
 @app.route('/entrevistadores/eliminar/<int:id>', methods=['POST'])
 @login_required
@@ -2003,9 +2659,16 @@ def eliminar_entrevistador(id):
         if result['total'] > 0:
             flash('No se puede eliminar el entrevistador porque tiene entrevistas asignadas', 'danger')
         else:
-            cursor.execute("DELETE FROM entrevistadores WHERE id_entrevistador = %s", (id,))
-            mysql.connection.commit()
-            flash('Entrevistador eliminado exitosamente', 'success')
+            # Verificar si el entrevistador está asociado a algún usuario
+            cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE id_entrevistador = %s", (id,))
+            user_result = cursor.fetchone()
+            
+            if user_result['total'] > 0:
+                flash('No se puede eliminar el entrevistador porque está asociado a un usuario del sistema', 'danger')
+            else:
+                cursor.execute("DELETE FROM entrevistadores WHERE id_entrevistador = %s", (id,))
+                mysql.connection.commit()
+                flash('Entrevistador eliminado exitosamente', 'success')
     except Exception as e:
         mysql.connection.rollback()
         flash(f'Error al eliminar entrevistador: {str(e)}', 'danger')
@@ -2014,6 +2677,115 @@ def eliminar_entrevistador(id):
     
     return redirect(url_for('entrevistadores'))
 
+@app.route('/api/entrevistadores/<int:id>')
+@login_required
+def api_obtener_entrevistador(id):
+    """API para obtener datos de un entrevistador específico (para AJAX)"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT e.*, r.nom_rol,
+                   COUNT(ent.id_entrevista) as total_entrevistas,
+                   AVG(ent.puntaje) as puntaje_promedio,
+                   COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes
+            FROM entrevistadores e
+            LEFT JOIN roles r ON e.id_rol = r.id_rol
+            LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
+            WHERE e.id_entrevistador = %s
+            GROUP BY e.id_entrevistador
+        """, (id,))
+        entrevistador = cursor.fetchone()
+        
+        if entrevistador:
+            return jsonify({
+                'success': True,
+                'entrevistador': entrevistador
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Entrevistador no encontrado'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
+@app.route('/api/entrevistadores/<int:id>/entrevistas')
+@login_required
+def api_entrevistador_entrevistas(id):
+    """API para obtener las entrevistas de un entrevistador específico"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT 
+                e.id_entrevista,
+                e.fecha_entrevista,
+                c.nom_candidato,
+                v.titulo_vacante,
+                es.nom_estado as estado_entrevista,
+                es.id_estadoentrevista
+            FROM entrevistas e
+            JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+            JOIN candidatos c ON p.id_candidato = c.id_candidato
+            JOIN vacantes v ON p.id_vacante = v.id_vacante
+            JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+            WHERE e.id_entrevistador = %s
+            AND e.fecha_entrevista >= CURDATE()
+            ORDER BY e.fecha_entrevista ASC
+            LIMIT 10
+        """, (id,))
+        entrevistas = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'entrevistas': entrevistas
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
+@app.route('/api/entrevistadores-estadisticas')
+@login_required
+def api_entrevistadores_estadisticas():
+    """API para obtener estadísticas de entrevistadores"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT 
+                e.id_entrevistador,
+                e.nom_entrevistador,
+                COUNT(ent.id_entrevista) as total_entrevistas,
+                AVG(ent.puntaje) as puntaje_promedio,
+                COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes,
+                COUNT(CASE WHEN ent.id_estadoentrevista = 2 THEN 1 END) as entrevistas_completadas,
+                COUNT(CASE WHEN ent.id_estadoentrevista = 1 THEN 1 END) as entrevistas_programadas
+            FROM entrevistadores e
+            LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
+            GROUP BY e.id_entrevistador, e.nom_entrevistador
+            ORDER BY total_entrevistas DESC
+        """)
+        estadisticas = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'estadisticas': estadisticas
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+    finally:
+        cursor.close()
+
 # RUTAS PARA USUARIOS DEL SISTEMA - VERSIÓN COMPLETA
 @app.route('/usuarios')
 @login_required
@@ -2021,6 +2793,7 @@ def eliminar_entrevistador(id):
 def usuarios():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
+        # QUITAR el filtro WHERE u.activo = 1 para mostrar todos los usuarios
         cursor.execute("""
             SELECT u.*, rs.nom_rol, e.nom_entrevistador,
                    CASE 
@@ -2030,8 +2803,7 @@ def usuarios():
             FROM usuarios u 
             JOIN roles_sistema rs ON u.id_rolsistema = rs.id_rolsistema
             LEFT JOIN entrevistadores e ON u.id_entrevistador = e.id_entrevistador
-            WHERE u.activo = 1
-            ORDER BY u.username
+            ORDER BY u.activo DESC, u.username  -- Ordenar por estado (activos primero)
         """)
         usuarios = cursor.fetchall()
         
@@ -2317,6 +3089,7 @@ def actualizar_perfil():
 # RUTAS PARA REPORTES - VERSIÓN MEJORADA CON HIGHCHARTS
 @app.route('/reportes')
 @login_required
+@role_required([1, 11])
 def reportes():
     return render_template('reportes.html')
 

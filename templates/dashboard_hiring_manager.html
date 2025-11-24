@@ -1,0 +1,183 @@
+{% extends "dashboard.html" %}
+
+{% block title %}Dashboard - Hiring Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Específico para Hiring Manager -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1 fw-bold text-primary">
+                <i class="fas fa-user-tie me-2"></i>Dashboard - Hiring Manager
+            </h1>
+            <p class="text-muted mb-0">Gestión de selección y contratación</p>
+        </div>
+    </div>
+
+    <!-- Métricas para Hiring Manager -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white shadow-card h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50 mb-2">VACANTES ACTIVAS</h6>
+                    <h2 class="fw-bold mb-0">{{ vacantes_activas }}</h2>
+                    <small class="text-white-70">En proceso de selección</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white shadow-card h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50 mb-2">EN SELECCIÓN</h6>
+                    <h2 class="fw-bold mb-0">{{ candidatos_en_seleccion }}</h2>
+                    <small class="text-white-70">Candidatos activos</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white shadow-card h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50 mb-2">OFERTAS PENDIENTES</h6>
+                    <h2 class="fw-bold mb-0">{{ ofertas_pendientes }}</h2>
+                    <small class="text-white-70">Por decisión</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white shadow-card h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50 mb-2">OFERTAS ACEPTADAS</h6>
+                    <h2 class="fw-bold mb-0">{{ ofertas_aceptadas }}</h2>
+                    <small class="text-white-70">Contrataciones exitosas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido Específico para Hiring Manager -->
+    <div class="row g-4">
+        <!-- Candidatos Finalistas -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">
+                        <i class="fas fa-trophy text-warning me-2"></i>Candidatos Finalistas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if candidatos_finalistas %}
+                        <div class="list-group list-group-flush">
+                            {% for candidato in candidatos_finalistas %}
+                            <div class="list-group-item px-0 py-3 border-0">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="avatar-circle-sm bg-warning bg-opacity-10 text-warning">
+                                            <i class="fas fa-star"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1 fw-semibold">{{ candidato.nom_candidato }}</h6>
+                                        <p class="text-muted small mb-1">{{ candidato.titulo_vacante }}</p>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-success">{{ candidato.nom_etapa }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users text-muted fa-2x mb-3"></i>
+                            <p class="text-muted mb-0">No hay candidatos finalistas</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Vacantes Populares -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">
+                        <i class="fas fa-chart-line text-success me-2"></i>Vacantes con Más Postulaciones
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if vacantes_populares %}
+                        <div class="list-group list-group-flush">
+                            {% for vacante in vacantes_populares %}
+                            <div class="list-group-item px-0 py-3 border-0">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1 fw-semibold">{{ vacante.titulo_vacante }}</h6>
+                                        <p class="text-muted small mb-0">{{ vacante.postulaciones }} postulaciones</p>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <span class="badge bg-primary">{{ vacante.postulaciones }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-briefcase text-muted fa-2x mb-3"></i>
+                            <p class="text-muted mb-0">No hay datos de vacantes</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas para Hiring Manager -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 fw-semibold">
+                        <i class="fas fa-bolt text-warning me-2"></i>Acciones Rápidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3 col-6">
+                            <a href="{{ url_for('vacantes') }}" class="btn btn-outline-primary w-100 h-100 py-3">
+                                <i class="fas fa-briefcase fa-2x mb-2"></i>
+                                <br>
+                                <small>Gestionar Vacantes</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <a href="{{ url_for('postulaciones') }}" class="btn btn-outline-success w-100 h-100 py-3">
+                                <i class="fas fa-list fa-2x mb-2"></i>
+                                <br>
+                                <small>Ver Postulaciones</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <a href="{{ url_for('ofertas') }}" class="btn btn-outline-warning w-100 h-100 py-3">
+                                <i class="fas fa-file-contract fa-2x mb-2"></i>
+                                <br>
+                                <small>Gestionar Ofertas</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <a href="{{ url_for('entrevistas') }}" class="btn btn-outline-info w-100 h-100 py-3">
+                                <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                                <br>
+                                <small>Calendario</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
