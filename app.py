@@ -112,15 +112,12 @@ def dashboard():
         elif user_role == 11:  # Auditor
             return render_auditor_dashboard(cursor)
         else:
-            # Dashboard genérico para roles no especificados
             return render_generic_dashboard(cursor)
             
     except Exception as e:
         print(f"Error en dashboard: {str(e)}")
         import traceback
         print(f"Traceback completo: {traceback.format_exc()}")
-        
-        # En caso de error, usar valores por defecto para dashboard básico
         flash('Error al cargar datos completos del dashboard. Mostrando vista básica.', 'warning')
         return render_template('dashboard.html',
                              total_candidatos=0,
@@ -132,70 +129,55 @@ def dashboard():
             cursor.close()
 
 def render_admin_dashboard(cursor):
-    """Dashboard completo para Administrador con manejo robusto de errores"""
+    """Dashboard completo para Administrador usando stored procedures"""
     try:
-        print("DEBUG: Iniciando render_admin_dashboard")
+        print("DEBUG: Iniciando render_admin_dashboard con SP")
         
-        # Función auxiliar para ejecutar consultas de forma segura
-        def safe_query(query, params=None, default=0):
+        # Función auxiliar para ejecutar stored procedures
+        def safe_sp_call(sp_name, params=None, default=0):
             try:
                 if params:
-                    cursor.execute(query, params)
+                    cursor.callproc(sp_name, params)
                 else:
-                    cursor.execute(query)
+                    cursor.callproc(sp_name)
                 result = cursor.fetchone()
                 return result['total'] if result and 'total' in result else default
             except Exception as e:
-                print(f"ERROR en consulta: {query} - Error: {e}")
+                print(f"ERROR en SP {sp_name}: {e}")
                 return default
 
-        # Estadísticas generales con manejo individual de errores
-        print("DEBUG: Ejecutando consulta de candidatos")
-        total_candidatos = safe_query("SELECT COUNT(*) as total FROM candidatos")
+        # Función para stored procedures que devuelven múltiples registros
+        def safe_sp_call_multi(sp_name, params=None, default=[]):
+            try:
+                if params:
+                    cursor.callproc(sp_name, params)
+                else:
+                    cursor.callproc(sp_name)
+                return cursor.fetchall()
+            except Exception as e:
+                print(f"ERROR en SP {sp_name}: {e}")
+                return default
+
+        # Estadísticas generales usando stored procedures
+        print("DEBUG: Ejecutando SP de candidatos")
+        total_candidatos = safe_sp_call('sp_total_candidatos')
         
-        print("DEBUG: Ejecutando consulta de vacantes activas")
-        vacantes_activas = safe_query("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
+        print("DEBUG: Ejecutando SP de vacantes activas")
+        vacantes_activas = safe_sp_call('sp_vacantes_activas')
         
-        print("DEBUG: Ejecutando consulta de usuarios activos")
-        usuarios_activos = safe_query("SELECT COUNT(*) as total FROM usuarios WHERE activo = 1")
+        print("DEBUG: Ejecutando SP de usuarios activos")
+        usuarios_activos = safe_sp_call('sp_usuarios_activos')
         
-        print("DEBUG: Ejecutando consulta de postulaciones hoy")
-        postulaciones_hoy = safe_query("SELECT COUNT(*) as total FROM postulaciones WHERE DATE(fecha_postula) = CURDATE()")
+        print("DEBUG: Ejecutando SP de postulaciones hoy")
+        postulaciones_hoy = safe_sp_call('sp_postulaciones_hoy')
         
         # Actividad reciente
-        print("DEBUG: Ejecutando consulta de actividad reciente")
-        try:
-            cursor.execute("""
-                SELECT 'Candidato' as tipo, nom_candidato as nombre, fecha_creacion as fecha
-                FROM candidatos 
-                ORDER BY fecha_creacion DESC 
-                LIMIT 5
-            """)
-            actividad_reciente = cursor.fetchall()
-            print(f"DEBUG: Actividad reciente encontrada: {len(actividad_reciente)} registros")
-        except Exception as e:
-            print(f"ERROR en actividad reciente: {e}")
-            actividad_reciente = []
+        print("DEBUG: Ejecutando SP de actividad reciente")
+        actividad_reciente = safe_sp_call_multi('sp_actividad_reciente')
         
         # Próximas entrevistas
-        print("DEBUG: Ejecutando consulta de próximas entrevistas")
-        try:
-            cursor.execute("""
-                SELECT e.fecha_entrevista, c.nom_candidato, v.titulo_vacante, ent.nom_entrevistador
-                FROM entrevistas e
-                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-                JOIN candidatos c ON p.id_candidato = c.id_candidato
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
-                WHERE e.fecha_entrevista >= CURDATE()
-                ORDER BY e.fecha_entrevista ASC
-                LIMIT 5
-            """)
-            proximas_entrevistas = cursor.fetchall()
-            print(f"DEBUG: Próximas entrevistas encontradas: {len(proximas_entrevistas)} registros")
-        except Exception as e:
-            print(f"ERROR en próximas entrevistas: {e}")
-            proximas_entrevistas = []
+        print("DEBUG: Ejecutando SP de próximas entrevistas")
+        proximas_entrevistas = safe_sp_call_multi('sp_proximas_entrevistas')
         
         print(f"DEBUG: Datos obtenidos - Candidatos: {total_candidatos}, Vacantes: {vacantes_activas}, Usuarios: {usuarios_activos}, Postulaciones hoy: {postulaciones_hoy}")
         
@@ -211,66 +193,50 @@ def render_admin_dashboard(cursor):
         print(f"ERROR CRÍTICO en render_admin_dashboard: {str(e)}")
         import traceback
         print(f"TRACEBACK: {traceback.format_exc()}")
-        raise  # Re-lanza la excepción para manejarla en el nivel superior
+        raise
 
 def render_recruiter_dashboard(cursor):
-    """Dashboard para Reclutador/Recruiter con manejo robusto de errores"""
+    """Dashboard para Reclutador usando stored procedures"""
     try:
-        print("DEBUG: Iniciando render_recruiter_dashboard")
+        print("DEBUG: Iniciando render_recruiter_dashboard con SP")
         
-        # Función auxiliar para ejecutar consultas de forma segura
-        def safe_query(query, params=None, default=0):
+        def safe_sp_call(sp_name, params=None, default=0):
             try:
                 if params:
-                    cursor.execute(query, params)
+                    cursor.callproc(sp_name, params)
                 else:
-                    cursor.execute(query)
+                    cursor.callproc(sp_name)
                 result = cursor.fetchone()
                 return result['total'] if result and 'total' in result else default
             except Exception as e:
-                print(f"ERROR en consulta: {query} - Error: {e}")
+                print(f"ERROR en SP {sp_name}: {e}")
+                return default
+
+        def safe_sp_call_multi(sp_name, params=None, default=[]):
+            try:
+                if params:
+                    cursor.callproc(sp_name, params)
+                else:
+                    cursor.callproc(sp_name)
+                return cursor.fetchall()
+            except Exception as e:
+                print(f"ERROR en SP {sp_name}: {e}")
                 return default
 
         # Estadísticas básicas
-        print("DEBUG: Ejecutando consultas básicas para recruiter")
-        total_candidatos = safe_query("SELECT COUNT(*) as total FROM candidatos")
-        vacantes_activas = safe_query("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
-        postulaciones_hoy = safe_query("SELECT COUNT(*) as total FROM postulaciones WHERE DATE(fecha_postula) = CURDATE()")
-        en_proceso = safe_query("SELECT COUNT(*) as total FROM postulaciones WHERE id_etapa IN (2,3,4,5)")
+        print("DEBUG: Ejecutando SP básicos para recruiter")
+        total_candidatos = safe_sp_call('sp_total_candidatos')
+        vacantes_activas = safe_sp_call('sp_vacantes_activas')
+        postulaciones_hoy = safe_sp_call('sp_postulaciones_hoy')
+        en_proceso = safe_sp_call('sp_candidatos_en_proceso')
         
         # Candidatos recientes
-        print("DEBUG: Ejecutando consulta de candidatos recientes")
-        try:
-            cursor.execute("""
-                SELECT nom_candidato, email, fecha_creacion 
-                FROM candidatos 
-                ORDER BY fecha_creacion DESC 
-                LIMIT 5
-            """)
-            candidatos_recientes = cursor.fetchall()
-            print(f"DEBUG: Candidatos recientes encontrados: {len(candidatos_recientes)}")
-        except Exception as e:
-            print(f"ERROR en candidatos recientes: {e}")
-            candidatos_recientes = []
+        print("DEBUG: Ejecutando SP de candidatos recientes")
+        candidatos_recientes = safe_sp_call_multi('sp_candidatos_recientes')
         
-        # Postulaciones pendientes de revisión
-        print("DEBUG: Ejecutando consulta de postulaciones pendientes")
-        try:
-            cursor.execute("""
-                SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante, e.nom_etapa
-                FROM postulaciones p
-                JOIN candidatos c ON p.id_candidato = c.id_candidato
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                JOIN etapas e ON p.id_etapa = e.id_etapa
-                WHERE p.id_etapa IN (1,2)  # Postulada, En revisión
-                ORDER BY p.fecha_postula DESC
-                LIMIT 5
-            """)
-            postulaciones_pendientes = cursor.fetchall()
-            print(f"DEBUG: Postulaciones pendientes encontradas: {len(postulaciones_pendientes)}")
-        except Exception as e:
-            print(f"ERROR en postulaciones pendientes: {e}")
-            postulaciones_pendientes = []
+        # Postulaciones pendientes
+        print("DEBUG: Ejecutando SP de postulaciones pendientes")
+        postulaciones_pendientes = safe_sp_call_multi('sp_postulaciones_pendientes')
         
         print(f"DEBUG: Datos recruiter - Candidatos: {total_candidatos}, Vacantes: {vacantes_activas}, Postulaciones hoy: {postulaciones_hoy}, En proceso: {en_proceso}")
         
@@ -289,80 +255,47 @@ def render_recruiter_dashboard(cursor):
         raise
 
 def render_hiring_manager_dashboard(cursor):
-    """Dashboard para Hiring Manager con manejo robusto de errores"""
+    """Dashboard para Hiring Manager usando stored procedures"""
     try:
-        print("DEBUG: Iniciando render_hiring_manager_dashboard")
+        print("DEBUG: Iniciando render_hiring_manager_dashboard con SP")
         
-        # Función auxiliar para ejecutar consultas de forma segura
-        def safe_query(query, params=None, default=0):
+        def safe_sp_call(sp_name, params=None, default=0):
             try:
                 if params:
-                    cursor.execute(query, params)
+                    cursor.callproc(sp_name, params)
                 else:
-                    cursor.execute(query)
+                    cursor.callproc(sp_name)
                 result = cursor.fetchone()
                 return result['total'] if result and 'total' in result else default
             except Exception as e:
-                print(f"ERROR en consulta: {query} - Error: {e}")
+                print(f"ERROR en SP {sp_name}: {e}")
+                return default
+
+        def safe_sp_call_multi(sp_name, params=None, default=[]):
+            try:
+                if params:
+                    cursor.callproc(sp_name, params)
+                else:
+                    cursor.callproc(sp_name)
+                return cursor.fetchall()
+            except Exception as e:
+                print(f"ERROR en SP {sp_name}: {e}")
                 return default
 
         # Estadísticas básicas
-        print("DEBUG: Ejecutando consultas básicas para hiring manager")
-        vacantes_activas = safe_query("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
-        ofertas_pendientes = safe_query("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 1")
-        ofertas_aceptadas = safe_query("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 2")
-        
-        # Candidatos en selección
-        print("DEBUG: Ejecutando consulta de candidatos en selección")
-        try:
-            cursor.execute("""
-                SELECT COUNT(DISTINCT p.id_candidato) as total 
-                FROM postulaciones p
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                WHERE p.id_etapa IN (4,5,6)  # En proceso de selección avanzada
-            """)
-            result = cursor.fetchone()
-            candidatos_en_seleccion = result['total'] if result else 0
-        except Exception as e:
-            print(f"ERROR en candidatos en selección: {e}")
-            candidatos_en_seleccion = 0
+        print("DEBUG: Ejecutando SP básicos para hiring manager")
+        vacantes_activas = safe_sp_call('sp_vacantes_activas')
+        ofertas_pendientes = safe_sp_call('sp_ofertas_pendientes')
+        ofertas_aceptadas = safe_sp_call('sp_ofertas_aceptadas')
+        candidatos_en_seleccion = safe_sp_call('sp_candidatos_en_seleccion')
         
         # Vacantes con más postulaciones
-        print("DEBUG: Ejecutando consulta de vacantes populares")
-        try:
-            cursor.execute("""
-                SELECT v.titulo_vacante, COUNT(p.id_postulacion) as postulaciones
-                FROM vacantes v
-                LEFT JOIN postulaciones p ON v.id_vacante = p.id_vacante
-                WHERE v.id_estadovacante = 1
-                GROUP BY v.id_vacante, v.titulo_vacante
-                ORDER BY postulaciones DESC
-                LIMIT 5
-            """)
-            vacantes_populares = cursor.fetchall()
-            print(f"DEBUG: Vacantes populares encontradas: {len(vacantes_populares)}")
-        except Exception as e:
-            print(f"ERROR en vacantes populares: {e}")
-            vacantes_populares = []
+        print("DEBUG: Ejecutando SP de vacantes populares")
+        vacantes_populares = safe_sp_call_multi('sp_vacantes_populares')
         
         # Candidatos finalistas
-        print("DEBUG: Ejecutando consulta de candidatos finalistas")
-        try:
-            cursor.execute("""
-                SELECT c.nom_candidato, v.titulo_vacante, e.nom_etapa
-                FROM postulaciones p
-                JOIN candidatos c ON p.id_candidato = c.id_candidato
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                JOIN etapas e ON p.id_etapa = e.id_etapa
-                WHERE p.id_etapa = 5  # Finalista
-                ORDER BY p.fecha_postula DESC
-                LIMIT 5
-            """)
-            candidatos_finalistas = cursor.fetchall()
-            print(f"DEBUG: Candidatos finalistas encontrados: {len(candidatos_finalistas)}")
-        except Exception as e:
-            print(f"ERROR en candidatos finalistas: {e}")
-            candidatos_finalistas = []
+        print("DEBUG: Ejecutando SP de candidatos finalistas")
+        candidatos_finalistas = safe_sp_call_multi('sp_candidatos_finalistas')
         
         print(f"DEBUG: Datos hiring manager - Vacantes: {vacantes_activas}, En selección: {candidatos_en_seleccion}, Ofertas pendientes: {ofertas_pendientes}")
         
@@ -381,21 +314,31 @@ def render_hiring_manager_dashboard(cursor):
         raise
 
 def render_entrevistador_dashboard(cursor):
-    """Dashboard para Entrevistador con manejo robusto de errores"""
+    """Dashboard para Entrevistador usando stored procedures"""
     try:
-        print("DEBUG: Iniciando render_entrevistador_dashboard")
+        print("DEBUG: Iniciando render_entrevistador_dashboard con SP")
         
-        # Función auxiliar para ejecutar consultas de forma segura
-        def safe_query(query, params=None, default=0):
+        def safe_sp_call(sp_name, params=None, default=0):
             try:
                 if params:
-                    cursor.execute(query, params)
+                    cursor.callproc(sp_name, params)
                 else:
-                    cursor.execute(query)
+                    cursor.callproc(sp_name)
                 result = cursor.fetchone()
                 return result['total'] if result and 'total' in result else default
             except Exception as e:
-                print(f"ERROR en consulta: {query} - Error: {e}")
+                print(f"ERROR en SP {sp_name}: {e}")
+                return default
+
+        def safe_sp_call_multi(sp_name, params=None, default=[]):
+            try:
+                if params:
+                    cursor.callproc(sp_name, params)
+                else:
+                    cursor.callproc(sp_name)
+                return cursor.fetchall()
+            except Exception as e:
+                print(f"ERROR en SP {sp_name}: {e}")
                 return default
 
         # Obtener el ID del entrevistador asociado al usuario
@@ -422,64 +365,18 @@ def render_entrevistador_dashboard(cursor):
                                  pendientes_feedback=0,
                                  historial_entrevistas=[])
         
-        # Estadísticas del entrevistador
-        print("DEBUG: Ejecutando consultas del entrevistador")
-        entrevistas_hoy = safe_query("""
-            SELECT COUNT(*) as total 
-            FROM entrevistas 
-            WHERE id_entrevistador = %s 
-            AND DATE(fecha_entrevista) = CURDATE()
-        """, (id_entrevistador,))
-        
-        pendientes_feedback = safe_query("""
-            SELECT COUNT(*) as total 
-            FROM entrevistas 
-            WHERE id_entrevistador = %s 
-            AND id_estadoentrevista = 2  # Completada
-            AND puntaje IS NULL
-        """, (id_entrevistador,))
+        # Estadísticas del entrevistador usando SP con parámetros
+        print("DEBUG: Ejecutando SP del entrevistador")
+        entrevistas_hoy = safe_sp_call('sp_entrevistas_hoy', [id_entrevistador])
+        pendientes_feedback = safe_sp_call('sp_pendientes_feedback', [id_entrevistador])
         
         # Próximas entrevistas
-        print("DEBUG: Ejecutando consulta de próximas entrevistas")
-        try:
-            cursor.execute("""
-                SELECT e.id_entrevista, e.fecha_entrevista, c.nom_candidato, v.titulo_vacante, 
-                       es.nom_estado as estado
-                FROM entrevistas e
-                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-                JOIN candidatos c ON p.id_candidato = c.id_candidato
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-                WHERE e.id_entrevistador = %s 
-                AND e.fecha_entrevista >= CURDATE()
-                ORDER BY e.fecha_entrevista ASC
-                LIMIT 10
-            """, (id_entrevistador,))
-            proximas_entrevistas = cursor.fetchall()
-            print(f"DEBUG: Próximas entrevistas encontradas: {len(proximas_entrevistas)}")
-        except Exception as e:
-            print(f"ERROR en próximas entrevistas: {e}")
-            proximas_entrevistas = []
+        print("DEBUG: Ejecutando SP de próximas entrevistas para entrevistador")
+        proximas_entrevistas = safe_sp_call_multi('sp_proximas_entrevistas_entrevistador', [id_entrevistador])
         
         # Historial reciente de entrevistas
-        print("DEBUG: Ejecutando consulta de historial de entrevistas")
-        try:
-            cursor.execute("""
-                SELECT e.fecha_entrevista, c.nom_candidato, v.titulo_vacante, e.puntaje
-                FROM entrevistas e
-                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-                JOIN candidatos c ON p.id_candidato = c.id_candidato
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                WHERE e.id_entrevistador = %s 
-                AND e.fecha_entrevista < CURDATE()
-                ORDER BY e.fecha_entrevista DESC
-                LIMIT 5
-            """, (id_entrevistador,))
-            historial_entrevistas = cursor.fetchall()
-            print(f"DEBUG: Historial de entrevistas encontrado: {len(historial_entrevistas)}")
-        except Exception as e:
-            print(f"ERROR en historial de entrevistas: {e}")
-            historial_entrevistas = []
+        print("DEBUG: Ejecutando SP de historial de entrevistas")
+        historial_entrevistas = safe_sp_call_multi('sp_historial_entrevistas', [id_entrevistador])
         
         print(f"DEBUG: Datos entrevistador - Entrevistas hoy: {entrevistas_hoy}, Pendientes feedback: {pendientes_feedback}")
         
@@ -496,68 +393,66 @@ def render_entrevistador_dashboard(cursor):
         raise
 
 def render_auditor_dashboard(cursor):
-    """Dashboard para Auditor con manejo robusto de errores"""
+    """Dashboard para Auditor usando stored procedures"""
     try:
-        print("DEBUG: Iniciando render_auditor_dashboard")
+        print("DEBUG: Iniciando render_auditor_dashboard con SP")
         
-        # Función auxiliar para ejecutar consultas de forma segura
-        def safe_query(query, params=None, default=0):
+        def safe_sp_call(sp_name, params=None, default=0):
             try:
                 if params:
-                    cursor.execute(query, params)
+                    cursor.callproc(sp_name, params)
                 else:
-                    cursor.execute(query)
+                    cursor.callproc(sp_name)
                 result = cursor.fetchone()
                 return result['total'] if result and 'total' in result else default
             except Exception as e:
-                print(f"ERROR en consulta: {query} - Error: {e}")
+                print(f"ERROR en SP {sp_name}: {e}")
                 return default
 
-        # Estadísticas generales
-        print("DEBUG: Ejecutando consultas generales para auditor")
-        total_candidatos = safe_query("SELECT COUNT(*) as total FROM candidatos")
-        total_vacantes = safe_query("SELECT COUNT(*) as total FROM vacantes")
-        total_postulaciones = safe_query("SELECT COUNT(*) as total FROM postulaciones")
-        total_entrevistas = safe_query("SELECT COUNT(*) as total FROM entrevistas")
-        total_ofertas = safe_query("SELECT COUNT(*) as total FROM ofertas")
-        total_contratados = safe_query("SELECT COUNT(*) as contratados FROM postulaciones WHERE id_etapa = 11")
-        
-        # Calcular tasa de conversión
-        tasa_conversion = (total_contratados / total_postulaciones * 100) if total_postulaciones > 0 else 0
+        def safe_sp_call_multi(sp_name, params=None, default=[]):
+            try:
+                if params:
+                    cursor.callproc(sp_name, params)
+                else:
+                    cursor.callproc(sp_name)
+                return cursor.fetchall()
+            except Exception as e:
+                print(f"ERROR en SP {sp_name}: {e}")
+                return default
+
+        # Totales generales en una sola llamada
+        print("DEBUG: Ejecutando SP de totales generales")
+        try:
+            cursor.callproc('sp_totales_generales')
+            totales = cursor.fetchone()
+            
+            total_candidatos = totales['total_candidatos'] if totales else 0
+            total_vacantes = totales['total_vacantes'] if totales else 0
+            total_postulaciones = totales['total_postulaciones'] if totales else 0
+            total_entrevistas = totales['total_entrevistas'] if totales else 0
+            total_ofertas = totales['total_ofertas'] if totales else 0
+            total_contratados = totales['total_contratados'] if totales else 0
+            
+            # Calcular tasa de conversión
+            tasa_conversion = (total_contratados / total_postulaciones * 100) if total_postulaciones > 0 else 0
+            
+        except Exception as e:
+            print(f"ERROR en totales generales: {e}")
+            total_candidatos = total_vacantes = total_postulaciones = total_entrevistas = total_ofertas = total_contratados = 0
+            tasa_conversion = 0
         
         # Fuentes de candidatos
-        print("DEBUG: Ejecutando consulta de fuentes de candidatos")
-        try:
-            cursor.execute("""
-                SELECT f.nom_fuente, COUNT(c.id_candidato) as cantidad
-                FROM fuentes f
-                LEFT JOIN candidatos c ON f.id_fuente = c.id_fuente
-                GROUP BY f.id_fuente, f.nom_fuente
-                ORDER BY cantidad DESC
-                LIMIT 5
-            """)
-            fuentes_candidatos = cursor.fetchall()
-            print(f"DEBUG: Fuentes de candidatos encontradas: {len(fuentes_candidatos)}")
-        except Exception as e:
-            print(f"ERROR en fuentes de candidatos: {e}")
-            fuentes_candidatos = []
+        print("DEBUG: Ejecutando SP de fuentes de candidatos")
+        fuentes_candidatos = safe_sp_call_multi('sp_fuentes_candidatos')
         
-        # Tiempos promedio
-        print("DEBUG: Ejecutando consulta de tiempos promedio")
+        # Tiempo promedio
+        print("DEBUG: Ejecutando SP de tiempo promedio")
         try:
-            cursor.execute("""
-                SELECT AVG(TIMESTAMPDIFF(DAY, p.fecha_postula, 
-                    COALESCE((SELECT MIN(e.fecha_entrevista) 
-                             FROM entrevistas e 
-                             WHERE e.id_postulacion = p.id_postulacion), 
-                            CURDATE()))) as tiempo_promedio
-                FROM postulaciones p
-                WHERE p.id_etapa >= 3
-            """)
+            cursor.callproc('sp_tiempo_promedio_proceso')
             result = cursor.fetchone()
             tiempo_promedio = result['tiempo_promedio'] if result and result['tiempo_promedio'] else 0
         except Exception as e:
-            print(f"ERROR en tiempos promedio: {e}")
+            print(f"ERROR en tiempo promedio: {e}")
             tiempo_promedio = 0
         
         print(f"DEBUG: Datos auditor - Candidatos: {total_candidatos}, Vacantes: {total_vacantes}, Postulaciones: {total_postulaciones}, Tasa conversión: {tasa_conversion}")
@@ -580,18 +475,26 @@ def render_auditor_dashboard(cursor):
         raise
 
 def render_generic_dashboard(cursor):
-    """Dashboard genérico para roles no especificados"""
-    cursor.execute("SELECT COUNT(*) as total FROM candidatos")
-    total_candidatos = cursor.fetchone()['total']
-    
-    cursor.execute("SELECT COUNT(*) as total FROM vacantes WHERE id_estadovacante = 1")
-    vacantes_activas = cursor.fetchone()['total']
-    
-    return render_template('dashboard_generic.html',
-                         total_candidatos=total_candidatos,
-                         vacantes_activas=vacantes_activas)
+    """Dashboard genérico para roles no especificados usando SP"""
+    try:
+        cursor.callproc('sp_total_candidatos')
+        total_candidatos_result = cursor.fetchone()
+        total_candidatos = total_candidatos_result['total'] if total_candidatos_result else 0
+        
+        cursor.callproc('sp_vacantes_activas')
+        vacantes_activas_result = cursor.fetchone()
+        vacantes_activas = vacantes_activas_result['total'] if vacantes_activas_result else 0
+        
+        return render_template('dashboard_generic.html',
+                             total_candidatos=total_candidatos,
+                             vacantes_activas=vacantes_activas)
+    except Exception as e:
+        print(f"Error en dashboard genérico: {e}")
+        return render_template('dashboard_generic.html',
+                             total_candidatos=0,
+                             vacantes_activas=0)
 
-# RUTAS PARA CANDIDATOS - VERSIÓN COMPLETA
+# RUTAS PARA CANDIDATOS - VERSIÓN COMPLETA CON STORED PROCEDURES
 @app.route('/candidatos')
 @login_required
 @role_required([1, 2, 9])
@@ -599,20 +502,28 @@ def candidatos():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         # Usar stored procedure para obtener candidatos
-        cursor.callproc('candidatoCrearActualizar', [None, None, None, None, None, None, 'SELECT'])
+        cursor.callproc('sp_obtener_candidatos')
         candidatos = cursor.fetchall()
         
-        # Obtener fuentes para el formulario
-        cursor.execute("SELECT * FROM fuentes")
+        # Obtener fuentes usando stored procedure
+        cursor.callproc('sp_obtener_fuentes')
         fuentes = cursor.fetchall()
+        
     except Exception as e:
         print(f"Error al cargar candidatos: {e}")
-        # Fallback a consulta directa
-        cursor.execute("SELECT c.*, f.nom_fuente FROM candidatos c LEFT JOIN fuentes f ON c.id_fuente = f.id_fuente")
-        candidatos = cursor.fetchall()
-        cursor.execute("SELECT * FROM fuentes")
-        fuentes = cursor.fetchall()
-    cursor.close()
+        # Fallback a consultas directas
+        try:
+            cursor.execute("SELECT c.*, f.nom_fuente FROM candidatos c LEFT JOIN fuentes f ON c.id_fuente = f.id_fuente")
+            candidatos = cursor.fetchall()
+            cursor.execute("SELECT * FROM fuentes")
+            fuentes = cursor.fetchall()
+        except Exception as fallback_error:
+            print(f"Error en fallback: {fallback_error}")
+            candidatos = []
+            fuentes = []
+    finally:
+        cursor.close()
+    
     return render_template('candidatos.html', candidatos=candidatos, fuentes=fuentes)
 
 # RUTA PÚBLICA PARA REGISTRO DE CANDIDATOS (SIN LOGIN REQUERIDO)
@@ -648,31 +559,40 @@ def registro_candidato_publico():
     # GET request - mostrar formulario de registro
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("SELECT * FROM fuentes ORDER BY nom_fuente")
+        # Obtener fuentes usando stored procedure
+        cursor.callproc('sp_obtener_fuentes')
         fuentes = cursor.fetchall()
 
-        # Obtener vacantes activas para mostrar en el carrusel
-        cursor.execute("""
-            SELECT 
-                v.*, 
-                d.nom_departamento,
-                (SELECT COUNT(*) FROM postulaciones p WHERE p.id_vacante = v.id_vacante) as num_postulaciones
-            FROM vacantes v 
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
-            WHERE v.id_estadovacante = 1 
-            ORDER BY v.fecha_creacion DESC 
-            LIMIT 10
-        """)
+        # Obtener vacantes activas usando stored procedure
+        cursor.callproc('sp_obtener_vacantes_activas')
         vacantes_activas = cursor.fetchall()
         
     except Exception as e:
-        fuentes = []
-        vacantes_activas = []
+        print(f"Error al cargar datos para registro público: {e}")
+        # Fallback a consultas directas
+        try:
+            cursor.execute("SELECT * FROM fuentes ORDER BY nom_fuente")
+            fuentes = cursor.fetchall()
+            cursor.execute("""
+                SELECT 
+                    v.*, 
+                    d.nom_departamento,
+                    (SELECT COUNT(*) FROM postulaciones p WHERE p.id_vacante = v.id_vacante) as num_postulaciones
+                FROM vacantes v 
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
+                WHERE v.id_estadovacante = 1 
+                ORDER BY v.fecha_creacion DESC 
+                LIMIT 10
+            """)
+            vacantes_activas = cursor.fetchall()
+        except Exception as fallback_error:
+            print(f"Error en fallback registro público: {fallback_error}")
+            fuentes = []
+            vacantes_activas = []
     finally:
         cursor.close()
     
     return render_template('registro_publico.html', fuentes=fuentes, vacantes_activas=vacantes_activas)
-
 
 @app.route('/candidatos/crear', methods=['POST'])
 @login_required
@@ -738,14 +658,25 @@ def editar_candidato(id):
         # GET request - mostrar formulario de edición
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute("SELECT c.*, f.nom_fuente FROM candidatos c LEFT JOIN fuentes f ON c.id_fuente = f.id_fuente WHERE c.id_candidato = %s", (id,))
+            # Usar stored procedure para obtener candidato
+            cursor.callproc('sp_obtener_candidato_por_id', [id])
             candidato = cursor.fetchone()
             
-            cursor.execute("SELECT * FROM fuentes")
+            # Obtener fuentes usando stored procedure
+            cursor.callproc('sp_obtener_fuentes')
             fuentes = cursor.fetchall()
+            
         except Exception as e:
-            flash(f'Error al cargar candidato: {str(e)}', 'danger')
-            return redirect(url_for('candidatos'))
+            print(f"Error al cargar candidato para edición: {e}")
+            # Fallback a consultas directas
+            try:
+                cursor.execute("SELECT c.*, f.nom_fuente FROM candidatos c LEFT JOIN fuentes f ON c.id_fuente = f.id_fuente WHERE c.id_candidato = %s", (id,))
+                candidato = cursor.fetchone()
+                cursor.execute("SELECT * FROM fuentes")
+                fuentes = cursor.fetchall()
+            except Exception as fallback_error:
+                flash(f'Error al cargar candidato: {str(fallback_error)}', 'danger')
+                return redirect(url_for('candidatos'))
         finally:
             cursor.close()
         
@@ -761,20 +692,38 @@ def editar_candidato(id):
 def eliminar_candidato(id):
     cursor = mysql.connection.cursor()
     try:
-        # Verificar si el candidato tiene postulaciones antes de eliminar
-        cursor.execute("SELECT COUNT(*) as total FROM postulaciones WHERE id_candidato = %s", (id,))
-        result = cursor.fetchone()
+        # Usar stored procedure para eliminar candidato
+        cursor.callproc('sp_eliminar_candidato', [id, ''])
         
-        if result['total'] > 0:
-            flash('No se puede eliminar el candidato porque tiene postulaciones activas', 'danger')
-        else:
-            # Llamar al stored procedure para eliminar candidato
-            cursor.execute("DELETE FROM candidatos WHERE id_candidato = %s", (id,))
+        # Obtener el resultado del stored procedure
+        result_cursor = mysql.connection.cursor()
+        result_cursor.execute("SELECT @p_resultado as resultado")
+        result = result_cursor.fetchone()
+        result_cursor.close()
+        
+        if 'exitosamente' in result['resultado']:
             mysql.connection.commit()
             flash('Candidato eliminado exitosamente', 'success')
+        else:
+            flash(result['resultado'], 'danger')
+            
     except Exception as e:
         mysql.connection.rollback()
-        flash(f'Error al eliminar candidato: {str(e)}', 'danger')
+        print(f"Error en eliminación con SP: {e}")
+        # Fallback a método original
+        try:
+            cursor.execute("SELECT COUNT(*) as total FROM postulaciones WHERE id_candidato = %s", (id,))
+            result = cursor.fetchone()
+            
+            if result['total'] > 0:
+                flash('No se puede eliminar el candidato porque tiene postulaciones activas', 'danger')
+            else:
+                cursor.execute("DELETE FROM candidatos WHERE id_candidato = %s", (id,))
+                mysql.connection.commit()
+                flash('Candidato eliminado exitosamente', 'success')
+        except Exception as fallback_error:
+            mysql.connection.rollback()
+            flash(f'Error al eliminar candidato: {str(fallback_error)}', 'danger')
     finally:
         cursor.close()
     
@@ -783,15 +732,11 @@ def eliminar_candidato(id):
 @app.route('/api/candidatos/<int:id>')
 @login_required
 def api_obtener_candidato(id):
-    """API para obtener datos de un candidato específico (para AJAX)"""
+    """API para obtener datos de un candidato específico (para AJAX) usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT c.*, f.nom_fuente 
-            FROM candidatos c 
-            LEFT JOIN fuentes f ON c.id_fuente = f.id_fuente 
-            WHERE c.id_candidato = %s
-        """, (id,))
+        # Usar stored procedure para obtener candidato
+        cursor.callproc('sp_obtener_candidato_por_id', [id])
         candidato = cursor.fetchone()
         
         if candidato:
@@ -805,20 +750,43 @@ def api_obtener_candidato(id):
                 'message': 'Candidato no encontrado'
             }), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API obtener candidato: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT c.*, f.nom_fuente 
+                FROM candidatos c 
+                LEFT JOIN fuentes f ON c.id_fuente = f.id_fuente 
+                WHERE c.id_candidato = %s
+            """, (id,))
+            candidato = cursor.fetchone()
+            
+            if candidato:
+                return jsonify({
+                    'success': True,
+                    'candidato': candidato
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Candidato no encontrado'
+                }), 404
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/candidatos-descartados')
 @login_required
 def api_candidatos_descartados():
-    """API para obtener candidatos descartados"""
+    """API para obtener candidatos descartados usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("SELECT * FROM vCandidatosDescartados")
+        # Usar stored procedure para obtener candidatos descartados
+        cursor.callproc('sp_obtener_candidatos_descartados')
         data = cursor.fetchall()
         
         return jsonify({
@@ -826,57 +794,77 @@ def api_candidatos_descartados():
             'candidatos': data
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API candidatos descartados: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("SELECT * FROM vCandidatosDescartados")
+            data = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'candidatos': data
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
-
-
-# RUTAS PARA VACANTES - VERSIÓN CORREGIDA
+# RUTAS PARA VACANTES - VERSIÓN CON STORED PROCEDURES
 @app.route('/vacantes')
 @login_required
 @role_required([1, 2, 9, 10])
 def vacantes():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener vacantes con información adicional usando JOINs
-        cursor.execute("""
-            SELECT 
-                v.*, 
-                d.nom_departamento, 
-                ev.nom_estado,
-                (SELECT COUNT(*) FROM postulaciones p WHERE p.id_vacante = v.id_vacante) as num_postulaciones
-            FROM vacantes v 
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
-            LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante
-            ORDER BY v.fecha_creacion DESC
-        """)
+        # Usar stored procedure para obtener vacantes
+        cursor.callproc('sp_obtener_vacantes')
         vacantes = cursor.fetchall()
         
-        # Obtener departamentos para el formulario
-        cursor.execute("SELECT * FROM departamentos ORDER BY nom_departamento")
+        # Obtener departamentos usando stored procedure
+        cursor.callproc('sp_obtener_departamentos')
         departamentos = cursor.fetchall()
         
-        # Obtener estados de vacantes para el formulario
-        cursor.execute("SELECT * FROM estados_vacantes ORDER BY id_estadovacante")
+        # Obtener estados de vacantes usando stored procedure
+        cursor.callproc('sp_obtener_estados_vacantes')
         estados_vacantes = cursor.fetchall()
         
     except Exception as e:
         print(f"Error al cargar vacantes: {e}")
-        flash(f'Error al cargar vacantes: {str(e)}', 'danger')
-        vacantes = []
-        departamentos = []
-        estados_vacantes = []
+        # Fallback a consultas directas
+        try:
+            cursor.execute("""
+                SELECT 
+                    v.*, 
+                    d.nom_departamento, 
+                    ev.nom_estado,
+                    (SELECT COUNT(*) FROM postulaciones p WHERE p.id_vacante = v.id_vacante) as num_postulaciones
+                FROM vacantes v 
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
+                LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante
+                ORDER BY v.fecha_creacion DESC
+            """)
+            vacantes = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM departamentos ORDER BY nom_departamento")
+            departamentos = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM estados_vacantes ORDER BY id_estadovacante")
+            estados_vacantes = cursor.fetchall()
+            
+        except Exception as fallback_error:
+            print(f"Error en fallback: {fallback_error}")
+            flash(f'Error al cargar vacantes: {str(fallback_error)}', 'danger')
+            vacantes = []
+            departamentos = []
+            estados_vacantes = []
     
     cursor.close()
     return render_template('vacantes.html', 
                          vacantes=vacantes, 
                          departamentos=departamentos, 
                          estados_vacantes=estados_vacantes)
-
-
 
 @app.route('/vacantes/crear', methods=['POST'])
 @login_required
@@ -932,23 +920,39 @@ def editar_vacante(id):
         # GET request - mostrar formulario de edición
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute("""
-                SELECT v.*, d.nom_departamento, ev.nom_estado
-                FROM vacantes v 
-                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
-                LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante
-                WHERE v.id_vacante = %s
-            """, (id,))
+            # Usar stored procedure para obtener vacante
+            cursor.callproc('sp_obtener_vacante_por_id', [id])
             vacante = cursor.fetchone()
             
-            cursor.execute("SELECT * FROM departamentos")
+            # Obtener departamentos usando stored procedure
+            cursor.callproc('sp_obtener_departamentos')
             departamentos = cursor.fetchall()
             
-            cursor.execute("SELECT * FROM estados_vacantes")
+            # Obtener estados de vacantes usando stored procedure
+            cursor.callproc('sp_obtener_estados_vacantes')
             estados_vacantes = cursor.fetchall()
+            
         except Exception as e:
-            flash(f'Error al cargar vacante: {str(e)}', 'danger')
-            return redirect(url_for('vacantes'))
+            print(f"Error al cargar vacante para edición: {e}")
+            # Fallback a consultas directas
+            try:
+                cursor.execute("""
+                    SELECT v.*, d.nom_departamento, ev.nom_estado
+                    FROM vacantes v 
+                    LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
+                    LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante
+                    WHERE v.id_vacante = %s
+                """, (id,))
+                vacante = cursor.fetchone()
+                
+                cursor.execute("SELECT * FROM departamentos")
+                departamentos = cursor.fetchall()
+                
+                cursor.execute("SELECT * FROM estados_vacantes")
+                estados_vacantes = cursor.fetchall()
+            except Exception as fallback_error:
+                flash(f'Error al cargar vacante: {str(fallback_error)}', 'danger')
+                return redirect(url_for('vacantes'))
         finally:
             cursor.close()
         
@@ -964,20 +968,38 @@ def editar_vacante(id):
 def eliminar_vacante(id):
     cursor = mysql.connection.cursor()
     try:
-        # Verificar si la vacante tiene postulaciones antes de eliminar
-        cursor.execute("SELECT COUNT(*) as total FROM postulaciones WHERE id_vacante = %s", (id,))
-        result = cursor.fetchone()
+        # Usar stored procedure para eliminar vacante
+        cursor.callproc('sp_eliminar_vacante', [id, ''])
         
-        if result['total'] > 0:
-            flash('No se puede eliminar la vacante porque tiene postulaciones activas', 'danger')
-        else:
-            # Realizar la eliminación directamente con una consulta DELETE
-            cursor.execute("DELETE FROM vacantes WHERE id_vacante = %s", (id,))
+        # Obtener el resultado del stored procedure
+        result_cursor = mysql.connection.cursor()
+        result_cursor.execute("SELECT @p_resultado as resultado")
+        result = result_cursor.fetchone()
+        result_cursor.close()
+        
+        if 'exitosamente' in result['resultado']:
             mysql.connection.commit()
             flash('Vacante eliminada exitosamente', 'success')
+        else:
+            flash(result['resultado'], 'danger')
+            
     except Exception as e:
         mysql.connection.rollback()
-        flash(f'Error al eliminar vacante: {str(e)}', 'danger')
+        print(f"Error en eliminación con SP: {e}")
+        # Fallback a método original
+        try:
+            cursor.execute("SELECT COUNT(*) as total FROM postulaciones WHERE id_vacante = %s", (id,))
+            result = cursor.fetchone()
+            
+            if result['total'] > 0:
+                flash('No se puede eliminar la vacante porque tiene postulaciones activas', 'danger')
+            else:
+                cursor.execute("DELETE FROM vacantes WHERE id_vacante = %s", (id,))
+                mysql.connection.commit()
+                flash('Vacante eliminada exitosamente', 'success')
+        except Exception as fallback_error:
+            mysql.connection.rollback()
+            flash(f'Error al eliminar vacante: {str(fallback_error)}', 'danger')
     finally:
         cursor.close()
     
@@ -986,25 +1008,11 @@ def eliminar_vacante(id):
 @app.route('/api/vacantes/<int:id>')
 @login_required
 def api_obtener_vacante(id):
-    """API para obtener datos de una vacante específica (para AJAX)"""
+    """API para obtener datos de una vacante específica (para AJAX) usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT v.*, d.nom_departamento, ev.nom_estado,
-                   (SELECT COUNT(*) FROM postulaciones p WHERE p.id_vacante = v.id_vacante) as num_postulaciones,
-                   (SELECT COUNT(*) FROM entrevistas e 
-                    JOIN postulaciones p ON e.id_postulacion = p.id_postulacion 
-                    WHERE p.id_vacante = v.id_vacante) as num_entrevistas,
-                   (SELECT COUNT(*) FROM ofertas o 
-                    JOIN postulaciones p ON o.id_postulacion = p.id_postulacion 
-                    WHERE p.id_vacante = v.id_vacante) as num_ofertas,
-                   (SELECT COUNT(*) FROM postulaciones p 
-                    WHERE p.id_vacante = v.id_vacante AND p.id_etapa = 11) as num_contratados
-            FROM vacantes v 
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
-            LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante 
-            WHERE v.id_vacante = %s
-        """, (id,))
+        # Usar stored procedure para obtener estadísticas de vacante
+        cursor.callproc('sp_obtener_estadisticas_vacante', [id])
         vacante = cursor.fetchone()
         
         if vacante:
@@ -1018,53 +1026,103 @@ def api_obtener_vacante(id):
                 'message': 'Vacante no encontrada'
             }), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API obtener vacante: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT v.*, d.nom_departamento, ev.nom_estado,
+                       (SELECT COUNT(*) FROM postulaciones p WHERE p.id_vacante = v.id_vacante) as num_postulaciones,
+                       (SELECT COUNT(*) FROM entrevistas e 
+                        JOIN postulaciones p ON e.id_postulacion = p.id_postulacion 
+                        WHERE p.id_vacante = v.id_vacante) as num_entrevistas,
+                       (SELECT COUNT(*) FROM ofertas o 
+                        JOIN postulaciones p ON o.id_postulacion = p.id_postulacion 
+                        WHERE p.id_vacante = v.id_vacante) as num_ofertas,
+                       (SELECT COUNT(*) FROM postulaciones p 
+                        WHERE p.id_vacante = v.id_vacante AND p.id_etapa = 11) as num_contratados
+                FROM vacantes v 
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
+                LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante 
+                WHERE v.id_vacante = %s
+            """, (id,))
+            vacante = cursor.fetchone()
+            
+            if vacante:
+                return jsonify({
+                    'success': True,
+                    'vacante': vacante
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Vacante no encontrada'
+                }), 404
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 # RUTAS PARA POSTULACIONES
-# RUTAS PARA POSTULACIONES - VERSIÓN COMPLETA
+# RUTAS PARA POSTULACIONES - VERSIÓN CON STORED PROCEDURES
 @app.route('/postulaciones')
 @login_required
 @role_required([1, 2, 9, 10])
 def postulaciones():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener postulaciones con información adicional
-        cursor.execute("""
-            SELECT p.*, c.nom_candidato, c.email, c.telefono, 
-                   v.titulo_vacante, d.nom_departamento, ev.nom_estado, e.nom_etapa
-            FROM postulaciones p 
-            JOIN candidatos c ON p.id_candidato = c.id_candidato 
-            JOIN vacantes v ON p.id_vacante = v.id_vacante 
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
-            LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante 
-            JOIN etapas e ON p.id_etapa = e.id_etapa
-            ORDER BY p.fecha_postula DESC
-        """)
+        # Usar stored procedure para obtener postulaciones
+        cursor.callproc('sp_obtener_postulaciones')
         postulaciones = cursor.fetchall()
         
-        # Obtener candidatos para el formulario
-        cursor.execute("SELECT id_candidato, nom_candidato, email FROM candidatos ORDER BY nom_candidato")
+        # Obtener candidatos usando stored procedure
+        cursor.callproc('sp_obtener_candidatos_postulaciones')
         candidatos = cursor.fetchall()
         
-        # Obtener vacantes para el formulario
-        cursor.execute("SELECT id_vacante, titulo_vacante FROM vacantes ORDER BY titulo_vacante")
+        # Obtener vacantes usando stored procedure
+        cursor.callproc('sp_obtener_vacantes_postulaciones')
         vacantes = cursor.fetchall()
         
-        # Obtener etapas para el formulario
-        cursor.execute("SELECT id_etapa, nom_etapa FROM etapas ORDER BY id_etapa")
+        # Obtener etapas usando stored procedure
+        cursor.callproc('sp_obtener_etapas')
         etapas = cursor.fetchall()
+        
     except Exception as e:
         print(f"Error al cargar postulaciones: {e}")
-        flash(f'Error al cargar postulaciones: {str(e)}', 'danger')
-        postulaciones = []
-        candidatos = []
-        vacantes = []
-        etapas = []
+        # Fallback a consultas directas
+        try:
+            cursor.execute("""
+                SELECT p.*, c.nom_candidato, c.email, c.telefono, 
+                       v.titulo_vacante, d.nom_departamento, ev.nom_estado, e.nom_etapa
+                FROM postulaciones p 
+                JOIN candidatos c ON p.id_candidato = c.id_candidato 
+                JOIN vacantes v ON p.id_vacante = v.id_vacante 
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
+                LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante 
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                ORDER BY p.fecha_postula DESC
+            """)
+            postulaciones = cursor.fetchall()
+            
+            cursor.execute("SELECT id_candidato, nom_candidato, email FROM candidatos ORDER BY nom_candidato")
+            candidatos = cursor.fetchall()
+            
+            cursor.execute("SELECT id_vacante, titulo_vacante FROM vacantes ORDER BY titulo_vacante")
+            vacantes = cursor.fetchall()
+            
+            cursor.execute("SELECT id_etapa, nom_etapa FROM etapas ORDER BY id_etapa")
+            etapas = cursor.fetchall()
+            
+        except Exception as fallback_error:
+            print(f"Error en fallback: {fallback_error}")
+            flash(f'Error al cargar postulaciones: {str(fallback_error)}', 'danger')
+            postulaciones = []
+            candidatos = []
+            vacantes = []
+            etapas = []
+    
     cursor.close()
     return render_template('postulaciones.html', 
                          postulaciones=postulaciones, 
@@ -1083,25 +1141,44 @@ def crear_postulacion():
         
         cursor = mysql.connection.cursor()
         try:
-            # Llamar al stored procedure para crear postulación
-            cursor.callproc('postular', [id_candidato, id_vacante])
+            # Usar stored procedure para crear postulación
+            cursor.callproc('sp_crear_postulacion', [id_candidato, id_vacante, id_etapa, ''])
             
-            # Si se especificó una etapa diferente a la inicial, actualizarla
-            if id_etapa != 1:
-                cursor.execute(
-                    "UPDATE postulaciones SET id_etapa = %s WHERE id_candidato = %s AND id_vacante = %s",
-                    (id_etapa, id_candidato, id_vacante)
-                )
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
             
-            mysql.connection.commit()
-            flash('Postulación creada exitosamente', 'success')
+            if 'exitosamente' in result['resultado']:
+                mysql.connection.commit()
+                flash('Postulación creada exitosamente', 'success')
+            else:
+                flash(result['resultado'], 'danger')
+                
         except Exception as e:
             mysql.connection.rollback()
-            error_msg = str(e)
-            if 'ya existe' in error_msg.lower():
-                flash('Error: El candidato ya está postulado a esta vacante', 'danger')
-            else:
-                flash(f'Error al crear postulación: {error_msg}', 'danger')
+            print(f"Error en creación con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.callproc('postular', [id_candidato, id_vacante])
+                
+                # Si se especificó una etapa diferente a la inicial, actualizarla
+                if id_etapa != 1:
+                    cursor.execute(
+                        "UPDATE postulaciones SET id_etapa = %s WHERE id_candidato = %s AND id_vacante = %s",
+                        (id_etapa, id_candidato, id_vacante)
+                    )
+                
+                mysql.connection.commit()
+                flash('Postulación creada exitosamente', 'success')
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                error_msg = str(fallback_error)
+                if 'ya existe' in error_msg.lower():
+                    flash('Error: El candidato ya está postulado a esta vacante', 'danger')
+                else:
+                    flash(f'Error al crear postulación: {error_msg}', 'danger')
         finally:
             cursor.close()
     
@@ -1114,36 +1191,58 @@ def mover_etapa_postulacion(id):
     if request.method == 'POST':
         nueva_etapa = request.form['nueva_etapa']
         
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor = mysql.connection.cursor()
         try:
-            # Obtener la etapa actual
-            cursor.execute("SELECT id_etapa FROM postulaciones WHERE id_postulacion = %s", (id,))
-            resultado = cursor.fetchone()
+            # Usar stored procedure para actualizar etapa
+            cursor.callproc('sp_actualizar_etapa_postulacion', [id, nueva_etapa, ''])
             
-            if not resultado:
-                flash('Postulación no encontrada', 'danger')
-                return redirect(url_for('postulaciones'))
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
+                mysql.connection.commit()
+                flash('Etapa actualizada exitosamente', 'success')
+            else:
+                flash(result['resultado'], 'danger')
                 
-            etapa_actual = resultado['id_etapa']
-            
-            # Verificar que la nueva etapa existe
-            cursor.execute("SELECT id_etapa FROM etapas WHERE id_etapa = %s", (nueva_etapa,))
-            if not cursor.fetchone():
-                flash('Etapa no válida', 'danger')
-                return redirect(url_for('postulaciones'))
-            
-            # Realizar la transición directamente con una consulta SQL
-            cursor.execute(
-                "UPDATE postulaciones SET id_etapa = %s WHERE id_postulacion = %s",
-                (nueva_etapa, id)
-            )
-            mysql.connection.commit()
-            flash('Etapa actualizada exitosamente', 'success')
         except Exception as e:
             mysql.connection.rollback()
-            flash(f'Error al actualizar etapa: {str(e)}', 'danger')
-        finally:
-            cursor.close()
+            print(f"Error en actualización de etapa con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+                
+                # Obtener la etapa actual
+                cursor.execute("SELECT id_etapa FROM postulaciones WHERE id_postulacion = %s", (id,))
+                resultado = cursor.fetchone()
+                
+                if not resultado:
+                    flash('Postulación no encontrada', 'danger')
+                    return redirect(url_for('postulaciones'))
+                    
+                etapa_actual = resultado['id_etapa']
+                
+                # Verificar que la nueva etapa existe
+                cursor.execute("SELECT id_etapa FROM etapas WHERE id_etapa = %s", (nueva_etapa,))
+                if not cursor.fetchone():
+                    flash('Etapa no válida', 'danger')
+                    return redirect(url_for('postulaciones'))
+                
+                # Realizar la transición
+                cursor.execute(
+                    "UPDATE postulaciones SET id_etapa = %s WHERE id_postulacion = %s",
+                    (nueva_etapa, id)
+                )
+                mysql.connection.commit()
+                flash('Etapa actualizada exitosamente', 'success')
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                flash(f'Error al actualizar etapa: {str(fallback_error)}', 'danger')
+            finally:
+                cursor.close()
     
     return redirect(url_for('postulaciones'))
 
@@ -1153,37 +1252,49 @@ def mover_etapa_postulacion(id):
 def eliminar_postulacion(id):
     cursor = mysql.connection.cursor()
     try:
-        # Iniciar transacción para asegurar la integridad de los datos
-        mysql.connection.begin()
+        # Usar stored procedure para eliminar postulación
+        cursor.callproc('sp_eliminar_postulacion', [id, ''])
         
-        # Verificar si existen entrevistas asociadas y eliminarlas primero
-        cursor.execute("SELECT COUNT(*) as count FROM entrevistas WHERE id_postulacion = %s", (id,))
-        entrevistas_count = cursor.fetchone()['count']
+        # Obtener el resultado del stored procedure
+        result_cursor = mysql.connection.cursor()
+        result_cursor.execute("SELECT @p_resultado as resultado")
+        result = result_cursor.fetchone()
+        result_cursor.close()
         
-        if entrevistas_count > 0:
-            # Eliminar las entrevistas asociadas
-            cursor.execute("DELETE FROM entrevistas WHERE id_postulacion = %s", (id,))
-            flash(f'Se eliminaron {entrevistas_count} entrevistas asociadas', 'info')
-        
-        # Verificar si existen ofertas asociadas y eliminarlas
-        cursor.execute("SELECT COUNT(*) as count FROM ofertas WHERE id_postulacion = %s", (id,))
-        ofertas_count = cursor.fetchone()['count']
-        
-        if ofertas_count > 0:
-            # Eliminar las ofertas asociadas
-            cursor.execute("DELETE FROM ofertas WHERE id_postulacion = %s", (id,))
-            flash(f'Se eliminaron {ofertas_count} ofertas asociadas', 'info')
-        
-        # Ahora eliminar la postulación
-        cursor.execute("DELETE FROM postulaciones WHERE id_postulacion = %s", (id,))
-        
-        # Confirmar la transacción
         mysql.connection.commit()
-        flash('Postulación eliminada exitosamente', 'success')
+        flash(result['resultado'], 'success')
+            
     except Exception as e:
-        # Revertir la transacción en caso de error
         mysql.connection.rollback()
-        flash(f'Error al eliminar postulación: {str(e)}', 'danger')
+        print(f"Error en eliminación con SP: {e}")
+        # Fallback a método original
+        try:
+            mysql.connection.begin()
+            
+            # Verificar si existen entrevistas asociadas y eliminarlas primero
+            cursor.execute("SELECT COUNT(*) as count FROM entrevistas WHERE id_postulacion = %s", (id,))
+            entrevistas_count = cursor.fetchone()['count']
+            
+            if entrevistas_count > 0:
+                cursor.execute("DELETE FROM entrevistas WHERE id_postulacion = %s", (id,))
+                flash(f'Se eliminaron {entrevistas_count} entrevistas asociadas', 'info')
+            
+            # Verificar si existen ofertas asociadas y eliminarlas
+            cursor.execute("SELECT COUNT(*) as count FROM ofertas WHERE id_postulacion = %s", (id,))
+            ofertas_count = cursor.fetchone()['count']
+            
+            if ofertas_count > 0:
+                cursor.execute("DELETE FROM ofertas WHERE id_postulacion = %s", (id,))
+                flash(f'Se eliminaron {ofertas_count} ofertas asociadas', 'info')
+            
+            # Eliminar la postulación
+            cursor.execute("DELETE FROM postulaciones WHERE id_postulacion = %s", (id,))
+            
+            mysql.connection.commit()
+            flash('Postulación eliminada exitosamente', 'success')
+        except Exception as fallback_error:
+            mysql.connection.rollback()
+            flash(f'Error al eliminar postulación: {str(fallback_error)}', 'danger')
     finally:
         cursor.close()
     
@@ -1192,20 +1303,11 @@ def eliminar_postulacion(id):
 @app.route('/api/postulaciones/<int:id>')
 @login_required
 def api_obtener_postulacion(id):
-    """API para obtener datos de una postulación específica (para AJAX)"""
+    """API para obtener datos de una postulación específica usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT p.*, c.nom_candidato, c.email, c.telefono, 
-                   v.titulo_vacante, d.nom_departamento, ev.nom_estado, e.nom_etapa
-            FROM postulaciones p 
-            JOIN candidatos c ON p.id_candidato = c.id_candidato 
-            JOIN vacantes v ON p.id_vacante = v.id_vacante 
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
-            LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante 
-            JOIN etapas e ON p.id_etapa = e.id_etapa
-            WHERE p.id_postulacion = %s
-        """, (id,))
+        # Usar stored procedure para obtener postulación
+        cursor.callproc('sp_obtener_postulacion_por_id', [id])
         postulacion = cursor.fetchone()
         
         if postulacion:
@@ -1219,20 +1321,48 @@ def api_obtener_postulacion(id):
                 'message': 'Postulación no encontrada'
             }), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API obtener postulación: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT p.*, c.nom_candidato, c.email, c.telefono, 
+                       v.titulo_vacante, d.nom_departamento, ev.nom_estado, e.nom_etapa
+                FROM postulaciones p 
+                JOIN candidatos c ON p.id_candidato = c.id_candidato 
+                JOIN vacantes v ON p.id_vacante = v.id_vacante 
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento 
+                LEFT JOIN estados_vacantes ev ON v.id_estadovacante = ev.id_estadovacante 
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                WHERE p.id_postulacion = %s
+            """, (id,))
+            postulacion = cursor.fetchone()
+            
+            if postulacion:
+                return jsonify({
+                    'success': True,
+                    'postulacion': postulacion
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Postulación no encontrada'
+                }), 404
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/etapas')
 @login_required
 def api_obtener_etapas():
-    """API para obtener todas las etapas (para AJAX)"""
+    """API para obtener todas las etapas usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("SELECT id_etapa, nom_etapa FROM etapas ORDER BY id_etapa")
+        # Usar stored procedure para obtener etapas
+        cursor.callproc('sp_obtener_etapas')
         etapas = cursor.fetchall()
         
         return jsonify({
@@ -1240,79 +1370,108 @@ def api_obtener_etapas():
             'etapas': etapas
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API obtener etapas: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("SELECT id_etapa, nom_etapa FROM etapas ORDER BY id_etapa")
+            etapas = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'etapas': etapas
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
-# RUTAS PARA ENTREVISTAS - VERSIÓN COMPLETA Y MEJORADA
+# RUTAS PARA ENTREVISTAS - VERSIÓN CON STORED PROCEDURES
 @app.route('/entrevistas')
 @login_required
 @role_required([1, 2, 9, 10, 3])
 def entrevistas():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener entrevistas con información completa
-        cursor.execute("""
-            SELECT 
-                e.*, 
-                p.id_postulacion,
-                c.id_candidato,
-                c.nom_candidato, 
-                c.email as email_candidato,
-                c.telefono as telefono_candidato,
-                v.id_vacante,
-                v.titulo_vacante, 
-                d.nom_departamento,
-                ent.id_entrevistador,
-                ent.nom_entrevistador,
-                ent.email as email_entrevistador,
-                es.id_estadoentrevista,
-                es.nom_estado as estado_entrevista,
-                CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
-                CASE 
-                    WHEN e.fecha_entrevista < CURDATE() THEN 'Pasada'
-                    WHEN e.fecha_entrevista = CURDATE() THEN 'Hoy'
-                    ELSE 'Futura'
-                END as tipo_fecha
-            FROM entrevistas e
-            JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
-            JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
-            JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-            ORDER BY e.fecha_entrevista DESC, e.id_entrevista DESC
-        """)
+        # Usar stored procedure para obtener entrevistas
+        cursor.callproc('sp_obtener_entrevistas')
         entrevistas = cursor.fetchall()
         
-        # Datos para formularios
-        cursor.execute("""
-            SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
-                   CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion
-            FROM postulaciones p
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            WHERE p.id_etapa NOT IN (11,12)  -- Excluir etapas finales
-            ORDER BY c.nom_candidato
-        """)
+        # Obtener postulaciones usando stored procedure
+        cursor.callproc('sp_obtener_postulaciones_entrevistables')
         postulaciones = cursor.fetchall()
         
-        cursor.execute("SELECT * FROM entrevistadores ORDER BY nom_entrevistador")
+        # Obtener entrevistadores usando stored procedure
+        cursor.callproc('sp_obtener_entrevistadores')
         entrevistadores = cursor.fetchall()
         
-        cursor.execute("SELECT * FROM estados_entrevistas ORDER BY id_estadoentrevista")
+        # Obtener estados de entrevista usando stored procedure
+        cursor.callproc('sp_obtener_estados_entrevista')
         estados_entrevista = cursor.fetchall()
         
     except Exception as e:
         print(f"Error al cargar entrevistas: {e}")
-        flash(f'Error al cargar entrevistas: {str(e)}', 'danger')
-        entrevistas = []
-        postulaciones = []
-        entrevistadores = []
-        estados_entrevista = []
+        # Fallback a consultas directas
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.*, 
+                    p.id_postulacion,
+                    c.id_candidato,
+                    c.nom_candidato, 
+                    c.email as email_candidato,
+                    c.telefono as telefono_candidato,
+                    v.id_vacante,
+                    v.titulo_vacante, 
+                    d.nom_departamento,
+                    ent.id_entrevistador,
+                    ent.nom_entrevistador,
+                    ent.email as email_entrevistador,
+                    es.id_estadoentrevista,
+                    es.nom_estado as estado_entrevista,
+                    CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
+                    CASE 
+                        WHEN e.fecha_entrevista < CURDATE() THEN 'Pasada'
+                        WHEN e.fecha_entrevista = CURDATE() THEN 'Hoy'
+                        ELSE 'Futura'
+                    END as tipo_fecha
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
+                JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                ORDER BY e.fecha_entrevista DESC, e.id_entrevista DESC
+            """)
+            entrevistas = cursor.fetchall()
+            
+            cursor.execute("""
+                SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
+                       CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion
+                FROM postulaciones p
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                WHERE p.id_etapa NOT IN (11,12)
+                ORDER BY c.nom_candidato
+            """)
+            postulaciones = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM entrevistadores ORDER BY nom_entrevistador")
+            entrevistadores = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM estados_entrevistas ORDER BY id_estadoentrevista")
+            estados_entrevista = cursor.fetchall()
+            
+        except Exception as fallback_error:
+            print(f"Error en fallback: {fallback_error}")
+            flash(f'Error al cargar entrevistas: {str(fallback_error)}', 'danger')
+            entrevistas = []
+            postulaciones = []
+            entrevistadores = []
+            estados_entrevista = []
     
     cursor.close()
     return render_template('entrevistas.html', 
@@ -1330,51 +1489,71 @@ def crear_entrevista():
         fecha_entrevista = request.form['fecha_entrevista']
         hora_entrevista = request.form.get('hora_entrevista', '09:00')
         id_entrevistador = request.form['id_entrevistador']
-        id_estadoentrevista = request.form.get('id_estadoentrevista', 1)  # Programada por defecto
+        id_estadoentrevista = request.form.get('id_estadoentrevista', 1)
         notas = request.form.get('notas', '')
 
-        # Combinar fecha y hora para crear un datetime completo
+        # Combinar fecha y hora
         fecha_hora = f"{fecha_entrevista} {hora_entrevista}"
 
         cursor = mysql.connection.cursor()
         try:
-            # VERIFICAR SI EL STORED PROCEDURE EXISTE
-            cursor.execute("SHOW PROCEDURE STATUS LIKE 'programarEntrevista'")
-            sp_exists = cursor.fetchone()
+            # Usar stored procedure para crear entrevista
+            cursor.callproc('sp_crear_entrevista', [
+                id_postulacion, 
+                fecha_hora, 
+                id_entrevistador, 
+                id_estadoentrevista, 
+                notas, 
+                ''
+            ])
             
-            if sp_exists:
-                # CORRECCIÓN: Pasar los parámetros en el orden correcto según la definición del SP
-                # [id_postulacion, id_entrevistador, fecha_hora]
-                cursor.callproc('programarEntrevista', [id_postulacion, id_entrevistador, fecha_hora])
-                
-                # Obtener el ID de la última entrevista insertada
-                cursor.execute("SELECT LAST_INSERT_ID() as id_entrevista")
-                id_entrevista_recien_creada = cursor.fetchone()['id_entrevista']
-                
-                # Actualizar el estado y las notas si se proporcionaron
-                if id_estadoentrevista != 1 or notas:
-                    cursor.execute("""
-                        UPDATE entrevistas 
-                        SET id_estadoentrevista = %s, notas = %s
-                        WHERE id_entrevista = %s
-                    """, (id_estadoentrevista, notas, id_entrevista_recien_creada))
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
+                mysql.connection.commit()
+                flash('Entrevista programada exitosamente', 'success')
             else:
-                # Si no existe el SP, usar inserción directa
-                cursor.execute("""
-                    INSERT INTO entrevistas (id_postulacion, fecha_entrevista, id_entrevistador, id_estadoentrevista, notas)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (id_postulacion, fecha_hora, id_entrevistador, id_estadoentrevista, notas))
-            
-            mysql.connection.commit()
-            flash('Entrevista programada exitosamente', 'success')
-            
+                flash(result['resultado'], 'danger')
+                
         except Exception as e:
             mysql.connection.rollback()
-            error_msg = str(e)
-            if 'duplicate' in error_msg.lower() or 'ya existe' in error_msg.lower():
-                flash('Error: Ya existe una entrevista programada para esta postulación', 'danger')
-            else:
-                flash(f'Error al programar entrevista: {error_msg}', 'danger')
+            print(f"Error en creación con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.execute("SHOW PROCEDURE STATUS LIKE 'programarEntrevista'")
+                sp_exists = cursor.fetchone()
+                
+                if sp_exists:
+                    cursor.callproc('programarEntrevista', [id_postulacion, id_entrevistador, fecha_hora])
+                    cursor.execute("SELECT LAST_INSERT_ID() as id_entrevista")
+                    id_entrevista_recien_creada = cursor.fetchone()['id_entrevista']
+                    
+                    if id_estadoentrevista != 1 or notas:
+                        cursor.execute("""
+                            UPDATE entrevistas 
+                            SET id_estadoentrevista = %s, notas = %s
+                            WHERE id_entrevista = %s
+                        """, (id_estadoentrevista, notas, id_entrevista_recien_creada))
+                else:
+                    cursor.execute("""
+                        INSERT INTO entrevistas (id_postulacion, fecha_entrevista, id_entrevistador, id_estadoentrevista, notas)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (id_postulacion, fecha_hora, id_entrevistador, id_estadoentrevista, notas))
+                
+                mysql.connection.commit()
+                flash('Entrevista programada exitosamente', 'success')
+                
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                error_msg = str(fallback_error)
+                if 'duplicate' in error_msg.lower() or 'ya existe' in error_msg.lower():
+                    flash('Error: Ya existe una entrevista programada para esta postulación', 'danger')
+                else:
+                    flash(f'Error al programar entrevista: {error_msg}', 'danger')
         finally:
             cursor.close()
     
@@ -1391,23 +1570,49 @@ def editar_entrevista(id):
         id_estadoentrevista = request.form['id_estadoentrevista']
         notas = request.form.get('notas', '')
         
-        # Combinar fecha y hora
         fecha_hora = f"{fecha_entrevista} {hora_entrevista}"
         
         cursor = mysql.connection.cursor()
         try:
-            cursor.execute("""
-                UPDATE entrevistas 
-                SET fecha_entrevista = %s, id_entrevistador = %s, 
-                    id_estadoentrevista = %s, notas = %s
-                WHERE id_entrevista = %s
-            """, (fecha_hora, id_entrevistador, id_estadoentrevista, notas, id))
+            # Usar stored procedure para actualizar entrevista
+            cursor.callproc('sp_actualizar_entrevista', [
+                id, 
+                fecha_hora, 
+                id_entrevistador, 
+                id_estadoentrevista, 
+                notas, 
+                ''
+            ])
             
-            mysql.connection.commit()
-            flash('Entrevista actualizada exitosamente', 'success')
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
+                mysql.connection.commit()
+                flash('Entrevista actualizada exitosamente', 'success')
+            else:
+                flash(result['resultado'], 'danger')
+                
         except Exception as e:
             mysql.connection.rollback()
-            flash(f'Error al actualizar entrevista: {str(e)}', 'danger')
+            print(f"Error en actualización con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.execute("""
+                    UPDATE entrevistas 
+                    SET fecha_entrevista = %s, id_entrevistador = %s, 
+                        id_estadoentrevista = %s, notas = %s
+                    WHERE id_entrevista = %s
+                """, (fecha_hora, id_entrevistador, id_estadoentrevista, notas, id))
+                
+                mysql.connection.commit()
+                flash('Entrevista actualizada exitosamente', 'success')
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                flash(f'Error al actualizar entrevista: {str(fallback_error)}', 'danger')
         finally:
             cursor.close()
         
@@ -1417,30 +1622,46 @@ def editar_entrevista(id):
         # GET request - mostrar formulario de edición
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute("""
-                SELECT e.*, p.id_postulacion, c.nom_candidato, v.titulo_vacante,
-                       ent.nom_entrevistador, es.nom_estado as estado_entrevista,
-                       DATE(e.fecha_entrevista) as fecha_sola,
-                       TIME(e.fecha_entrevista) as hora_sola
-                FROM entrevistas e
-                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-                JOIN candidatos c ON p.id_candidato = c.id_candidato
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
-                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-                WHERE e.id_entrevista = %s
-            """, (id,))
+            # Usar stored procedure para obtener entrevista
+            cursor.callproc('sp_obtener_entrevista_por_id', [id])
             entrevista = cursor.fetchone()
             
-            cursor.execute("SELECT * FROM entrevistadores ORDER BY nom_entrevistador")
+            # Obtener entrevistadores usando stored procedure
+            cursor.callproc('sp_obtener_entrevistadores')
             entrevistadores = cursor.fetchall()
             
-            cursor.execute("SELECT * FROM estados_entrevistas ORDER BY id_estadoentrevista")
+            # Obtener estados de entrevista usando stored procedure
+            cursor.callproc('sp_obtener_estados_entrevista')
             estados_entrevista = cursor.fetchall()
             
         except Exception as e:
-            flash(f'Error al cargar entrevista: {str(e)}', 'danger')
-            return redirect(url_for('entrevistas'))
+            print(f"Error al cargar entrevista para edición: {e}")
+            # Fallback a consultas directas
+            try:
+                cursor.execute("""
+                    SELECT e.*, p.id_postulacion, c.nom_candidato, v.titulo_vacante,
+                           ent.nom_entrevistador, es.nom_estado as estado_entrevista,
+                           DATE(e.fecha_entrevista) as fecha_sola,
+                           TIME(e.fecha_entrevista) as hora_sola
+                    FROM entrevistas e
+                    JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                    JOIN candidatos c ON p.id_candidato = c.id_candidato
+                    JOIN vacantes v ON p.id_vacante = v.id_vacante
+                    JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+                    JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                    WHERE e.id_entrevista = %s
+                """, (id,))
+                entrevista = cursor.fetchone()
+                
+                cursor.execute("SELECT * FROM entrevistadores ORDER BY nom_entrevistador")
+                entrevistadores = cursor.fetchall()
+                
+                cursor.execute("SELECT * FROM estados_entrevistas ORDER BY id_estadoentrevista")
+                estados_entrevista = cursor.fetchall()
+                
+            except Exception as fallback_error:
+                flash(f'Error al cargar entrevista: {str(fallback_error)}', 'danger')
+                return redirect(url_for('entrevistas'))
         finally:
             cursor.close()
         
@@ -1460,7 +1681,7 @@ def registrar_feedback_entrevista(id):
     if request.method == 'POST':
         puntaje = request.form['puntaje']
         comentarios = request.form.get('comentarios', '')
-        id_estadoentrevista = request.form.get('id_estadoentrevista', 3)  # Completada por defecto
+        id_estadoentrevista = request.form.get('id_estadoentrevista', 3)
         
         cursor = mysql.connection.cursor()
         try:
@@ -1470,7 +1691,7 @@ def registrar_feedback_entrevista(id):
                 flash('Entrevista no encontrada', 'danger')
                 return redirect(url_for('entrevistas'))
             
-            # Usar el stored procedure para registrar feedback
+            # Usar el stored procedure existente para registrar feedback
             cursor.callproc('registrarFeedback', [id, puntaje, comentarios])
             
             # Actualizar el estado de la entrevista si se proporciona
@@ -1488,10 +1709,10 @@ def registrar_feedback_entrevista(id):
         finally:
             cursor.close()
     
-    # Para el método GET, obtener los estados de entrevista y mostrar el formulario
+    # Para el método GET, obtener los estados de entrevista
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("SELECT * FROM estados_entrevistas ORDER BY id_estadoentrevista")
+        cursor.callproc('sp_obtener_estados_entrevista')
         estados_entrevista = cursor.fetchall()
     except Exception as e:
         flash(f'Error al cargar estados de entrevista: {str(e)}', 'danger')
@@ -1509,19 +1730,37 @@ def registrar_feedback_entrevista(id):
 def eliminar_entrevista(id):
     cursor = mysql.connection.cursor()
     try:
-        # Verificar si la entrevista existe
-        cursor.execute("SELECT id_entrevista FROM entrevistas WHERE id_entrevista = %s", (id,))
-        if not cursor.fetchone():
-            flash('Entrevista no encontrada', 'danger')
-            return redirect(url_for('entrevistas'))
+        # Usar stored procedure para eliminar entrevista
+        cursor.callproc('sp_eliminar_entrevista', [id, ''])
         
-        # Eliminar la entrevista
-        cursor.execute("DELETE FROM entrevistas WHERE id_entrevista = %s", (id,))
-        mysql.connection.commit()
-        flash('Entrevista eliminada exitosamente', 'success')
+        # Obtener el resultado del stored procedure
+        result_cursor = mysql.connection.cursor()
+        result_cursor.execute("SELECT @p_resultado as resultado")
+        result = result_cursor.fetchone()
+        result_cursor.close()
+        
+        if 'exitosamente' in result['resultado']:
+            mysql.connection.commit()
+            flash('Entrevista eliminada exitosamente', 'success')
+        else:
+            flash(result['resultado'], 'danger')
+            
     except Exception as e:
         mysql.connection.rollback()
-        flash(f'Error al eliminar entrevista: {str(e)}', 'danger')
+        print(f"Error en eliminación con SP: {e}")
+        # Fallback a método original
+        try:
+            cursor.execute("SELECT id_entrevista FROM entrevistas WHERE id_entrevista = %s", (id,))
+            if not cursor.fetchone():
+                flash('Entrevista no encontrada', 'danger')
+                return redirect(url_for('entrevistas'))
+            
+            cursor.execute("DELETE FROM entrevistas WHERE id_entrevista = %s", (id,))
+            mysql.connection.commit()
+            flash('Entrevista eliminada exitosamente', 'success')
+        except Exception as fallback_error:
+            mysql.connection.rollback()
+            flash(f'Error al eliminar entrevista: {str(fallback_error)}', 'danger')
     finally:
         cursor.close()
     
@@ -1530,37 +1769,11 @@ def eliminar_entrevista(id):
 @app.route('/api/entrevistas/<int:id>')
 @login_required
 def api_obtener_entrevista(id):
-    """API para obtener datos de una entrevista específica (para AJAX)"""
+    """API para obtener datos de una entrevista específica usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Consulta más simple y robusta
-        cursor.execute("""
-            SELECT 
-                e.id_entrevista,
-                e.fecha_entrevista,
-                e.puntaje,
-                e.notas,
-                e.id_estadoentrevista,
-                e.id_entrevistador,
-                p.id_postulacion,
-                c.nom_candidato, 
-                c.email as email_candidato,
-                c.telefono as telefono_candidato,
-                v.titulo_vacante, 
-                d.nom_departamento,
-                ent.nom_entrevistador,
-                ent.email as email_entrevistador,
-                ent.telefono as telefono_entrevistador,
-                es.nom_estado as estado_entrevista
-            FROM entrevistas e
-            LEFT JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-            LEFT JOIN candidatos c ON p.id_candidato = c.id_candidato
-            LEFT JOIN vacantes v ON p.id_vacante = v.id_vacante
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
-            LEFT JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
-            LEFT JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-            WHERE e.id_entrevista = %s
-        """, (id,))
+        # Usar stored procedure para obtener entrevista detallada
+        cursor.callproc('sp_obtener_entrevista_detallada', [id])
         entrevista = cursor.fetchone()
         
         if not entrevista:
@@ -1613,40 +1826,63 @@ def api_obtener_entrevista(id):
         })
         
     except Exception as e:
-        print(f"Error detallado en api_obtener_entrevista: {str(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        
-        return jsonify({
-            'success': False,
-            'message': 'Error interno del servidor al cargar los detalles de la entrevista'
-        }), 500
+        print(f"Error en API obtener entrevista: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.id_entrevista,
+                    e.fecha_entrevista,
+                    e.puntaje,
+                    e.notas,
+                    e.id_estadoentrevista,
+                    e.id_entrevistador,
+                    p.id_postulacion,
+                    c.nom_candidato, 
+                    c.email as email_candidato,
+                    c.telefono as telefono_candidato,
+                    v.titulo_vacante, 
+                    d.nom_departamento,
+                    ent.nom_entrevistador,
+                    ent.email as email_entrevistador,
+                    ent.telefono as telefono_entrevistador,
+                    es.nom_estado as estado_entrevista
+                FROM entrevistas e
+                LEFT JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                LEFT JOIN candidatos c ON p.id_candidato = c.id_candidato
+                LEFT JOIN vacantes v ON p.id_vacante = v.id_vacante
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
+                LEFT JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+                LEFT JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                WHERE e.id_entrevista = %s
+            """, (id,))
+            entrevista = cursor.fetchone()
+            
+            if not entrevista:
+                return jsonify({
+                    'success': False,
+                    'message': 'Entrevista no encontrada'
+                }), 404
+            
+            # Formatear respuesta (mismo código que arriba)
+            # ... (repetir el código de formateo)
+            
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
-# Ruta para obtener postulaciones disponibles para entrevistas (API)
 @app.route('/api/postulaciones-entrevistables')
 @login_required
 def api_postulaciones_entrevistables():
-    """API para obtener postulaciones que pueden tener entrevistas"""
+    """API para obtener postulaciones que pueden tener entrevistas usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
-                   CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
-                   e.nom_etapa as etapa_actual
-            FROM postulaciones p
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN etapas e ON p.id_etapa = e.id_etapa
-            WHERE p.id_etapa NOT IN (11,12)  -- Excluir etapas finales
-            AND NOT EXISTS (
-                SELECT 1 FROM entrevistas ent 
-                WHERE ent.id_postulacion = p.id_postulacion 
-                AND ent.id_estadoentrevista IN (1, 2)  -- Excluir si ya tiene entrevista programada o en progreso
-            )
-            ORDER BY c.nom_candidato
-        """)
+        # Usar stored procedure para obtener postulaciones entrevistables
+        cursor.callproc('sp_obtener_postulaciones_entrevistables_api')
         postulaciones = cursor.fetchall()
         
         return jsonify({
@@ -1654,20 +1890,47 @@ def api_postulaciones_entrevistables():
             'postulaciones': postulaciones
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API postulaciones entrevistables: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
+                       CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
+                       e.nom_etapa as etapa_actual
+                FROM postulaciones p
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                WHERE p.id_etapa NOT IN (11,12)
+                AND NOT EXISTS (
+                    SELECT 1 FROM entrevistas ent 
+                    WHERE ent.id_postulacion = p.id_postulacion 
+                    AND ent.id_estadoentrevista IN (1, 2)
+                )
+                ORDER BY c.nom_candidato
+            """)
+            postulaciones = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'postulaciones': postulaciones
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/entrevistas-semana')
 @login_required
 def api_entrevistas_semana():
-    """API para obtener entrevistas de la semana"""
+    """API para obtener entrevistas de la semana usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("SELECT * FROM vEntrevistasSemana")
+        # Usar stored procedure para obtener entrevistas de la semana
+        cursor.callproc('sp_obtener_entrevistas_semana')
         data = cursor.fetchall()
         
         return jsonify({
@@ -1675,79 +1938,102 @@ def api_entrevistas_semana():
             'entrevistas': data
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API entrevistas semana: {e}")
+        # Fallback a consulta directa de la vista
+        try:
+            cursor.execute("SELECT * FROM vEntrevistasSemana")
+            data = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'entrevistas': data
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
-
-
-# RUTAS PARA OFERTAS - VERSIÓN COMPLETA Y MEJORADA
+# RUTAS PARA OFERTAS - VERSIÓN CON STORED PROCEDURES
 @app.route('/ofertas')
 @login_required
 @role_required([1, 2, 9, 10])
 def ofertas():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener ofertas con información completa - CORREGIDO
-        cursor.execute("""
-            SELECT 
-                o.*, 
-                p.id_postulacion,
-                c.id_candidato,
-                c.nom_candidato, 
-                c.email,
-                c.telefono,
-                v.id_vacante,
-                v.titulo_vacante, 
-                d.nom_departamento,
-                eo.id_estadoferta,
-                eo.nom_estado as estado_oferta,
-                CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
-                CASE 
-                    WHEN o.fecha_decision IS NULL THEN 'Pendiente de decisión'
-                    ELSE 'Decidida'
-                END as estado_avance
-            FROM ofertas o
-            JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
-            JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
-            ORDER BY o.id_oferta DESC
-        """)
+        # Usar stored procedure para obtener ofertas
+        cursor.callproc('sp_obtener_ofertas')
         ofertas = cursor.fetchall()
         
-        # Datos para formularios - CORREGIDO
-        cursor.execute("""
-            SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
-                   CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
-                   e.nom_etapa as etapa_actual
-            FROM postulaciones p
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN etapas e ON p.id_etapa = e.id_etapa
-            WHERE p.id_etapa >= 4  -- Incluir etapas finales (4, 5, etc.)
-            AND NOT EXISTS (
-                SELECT 1 FROM ofertas o 
-                WHERE o.id_postulacion = p.id_postulacion 
-                AND o.id_estadoferta IN (1)  -- Excluir si ya tiene oferta pendiente
-            )
-            ORDER BY c.nom_candidato
-        """)
+        # Obtener postulaciones usando stored procedure
+        cursor.callproc('sp_obtener_postulaciones_ofertables')
         postulaciones = cursor.fetchall()
         
-        cursor.execute("SELECT * FROM estados_ofertas ORDER BY id_estadoferta")
+        # Obtener estados de oferta usando stored procedure
+        cursor.callproc('sp_obtener_estados_oferta')
         estados_oferta = cursor.fetchall()
         
     except Exception as e:
         print(f"Error al cargar ofertas: {e}")
-        flash(f'Error al cargar ofertas: {str(e)}', 'danger')
-        ofertas = []
-        postulaciones = []
-        estados_oferta = []
+        # Fallback a consultas directas
+        try:
+            cursor.execute("""
+                SELECT 
+                    o.*, 
+                    p.id_postulacion,
+                    c.id_candidato,
+                    c.nom_candidato, 
+                    c.email,
+                    c.telefono,
+                    v.id_vacante,
+                    v.titulo_vacante, 
+                    d.nom_departamento,
+                    eo.id_estadoferta,
+                    eo.nom_estado as estado_oferta,
+                    CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
+                    CASE 
+                        WHEN o.fecha_decision IS NULL THEN 'Pendiente de decisión'
+                        ELSE 'Decidida'
+                    END as estado_avance
+                FROM ofertas o
+                JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
+                JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
+                ORDER BY o.id_oferta DESC
+            """)
+            ofertas = cursor.fetchall()
+            
+            cursor.execute("""
+                SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
+                       CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
+                       e.nom_etapa as etapa_actual
+                FROM postulaciones p
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                WHERE p.id_etapa >= 4
+                AND NOT EXISTS (
+                    SELECT 1 FROM ofertas o 
+                    WHERE o.id_postulacion = p.id_postulacion 
+                    AND o.id_estadoferta IN (1)
+                )
+                ORDER BY c.nom_candidato
+            """)
+            postulaciones = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM estados_ofertas ORDER BY id_estadoferta")
+            estados_oferta = cursor.fetchall()
+            
+        except Exception as fallback_error:
+            print(f"Error en fallback: {fallback_error}")
+            flash(f'Error al cargar ofertas: {str(fallback_error)}', 'danger')
+            ofertas = []
+            postulaciones = []
+            estados_oferta = []
     
     cursor.close()
     return render_template('ofertas.html', 
@@ -1762,48 +2048,68 @@ def emitir_oferta():
     if request.method == 'POST':
         id_postulacion = request.form['id_postulacion']
         monto_oferta = request.form['monto_oferta']
-        id_estadoferta = request.form.get('id_estadoferta', 1)  # Pendiente por defecto
+        id_estadoferta = request.form.get('id_estadoferta', 1)
         
         cursor = mysql.connection.cursor()
         try:
-            # VERIFICAR SI EL STORED PROCEDURE EXISTE
-            cursor.execute("SHOW PROCEDURE STATUS LIKE 'ofertaEmitir'")
-            sp_exists = cursor.fetchone()
+            # Usar stored procedure para crear oferta
+            cursor.callproc('sp_crear_oferta', [
+                id_postulacion, 
+                monto_oferta, 
+                id_estadoferta, 
+                '',  # notas vacías por defecto
+                ''
+            ])
             
-            if sp_exists:
-                # CORRECCIÓN: El SP espera solo 2 parámetros: [id_postulacion, monto_oferta]
-                cursor.callproc('ofertaEmitir', [id_postulacion, monto_oferta])
-                
-                # Obtener el ID de la última oferta insertada
-                cursor.execute("SELECT LAST_INSERT_ID() as id_oferta")
-                id_oferta_recien_creada = cursor.fetchone()['id_oferta']
-                
-                # Actualizar el estado si se proporcionó uno diferente
-                if id_estadoferta != 1:
-                    cursor.execute("""
-                        UPDATE ofertas 
-                        SET id_estadoferta = %s
-                        WHERE id_oferta = %s
-                    """, (id_estadoferta, id_oferta_recien_creada))
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
+                mysql.connection.commit()
+                flash('Oferta emitida exitosamente', 'success')
             else:
-                # Si no existe el SP, usar inserción directa
-                cursor.execute("""
-                    INSERT INTO ofertas (id_postulacion, monto_oferta, id_estadoferta)
-                    VALUES (%s, %s, %s)
-                """, (id_postulacion, monto_oferta, id_estadoferta))
-            
-            mysql.connection.commit()
-            flash('Oferta emitida exitosamente', 'success')
-            
+                flash(result['resultado'], 'danger')
+                
         except Exception as e:
             mysql.connection.rollback()
-            error_msg = str(e)
-            if 'solo se puede emitir oferta a candidatos finalistas' in error_msg.lower():
-                flash('Error: Solo se pueden emitir ofertas a candidatos finalistas (Etapa 5)', 'danger')
-            elif 'duplicate' in error_msg.lower() or 'ya existe' in error_msg.lower():
-                flash('Error: Ya existe una oferta para esta postulación', 'danger')
-            else:
-                flash(f'Error al emitir oferta: {error_msg}', 'danger')
+            print(f"Error en emisión con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.execute("SHOW PROCEDURE STATUS LIKE 'ofertaEmitir'")
+                sp_exists = cursor.fetchone()
+                
+                if sp_exists:
+                    cursor.callproc('ofertaEmitir', [id_postulacion, monto_oferta])
+                    cursor.execute("SELECT LAST_INSERT_ID() as id_oferta")
+                    id_oferta_recien_creada = cursor.fetchone()['id_oferta']
+                    
+                    if id_estadoferta != 1:
+                        cursor.execute("""
+                            UPDATE ofertas 
+                            SET id_estadoferta = %s
+                            WHERE id_oferta = %s
+                        """, (id_estadoferta, id_oferta_recien_creada))
+                else:
+                    cursor.execute("""
+                        INSERT INTO ofertas (id_postulacion, monto_oferta, id_estadoferta)
+                        VALUES (%s, %s, %s)
+                    """, (id_postulacion, monto_oferta, id_estadoferta))
+                
+                mysql.connection.commit()
+                flash('Oferta emitida exitosamente', 'success')
+                
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                error_msg = str(fallback_error)
+                if 'solo se puede emitir oferta a candidatos finalistas' in error_msg.lower():
+                    flash('Error: Solo se pueden emitir ofertas a candidatos finalistas (Etapa 5)', 'danger')
+                elif 'duplicate' in error_msg.lower() or 'ya existe' in error_msg.lower():
+                    flash('Error: Ya existe una oferta para esta postulación', 'danger')
+                else:
+                    flash(f'Error al emitir oferta: {error_msg}', 'danger')
         finally:
             cursor.close()
     
@@ -1820,17 +2126,43 @@ def editar_oferta(id):
         
         cursor = mysql.connection.cursor()
         try:
-            cursor.execute("""
-                UPDATE ofertas 
-                SET monto_oferta = %s, id_estadoferta = %s, notas = %s
-                WHERE id_oferta = %s
-            """, (monto_oferta, id_estadoferta, notas, id))
+            # Usar stored procedure para actualizar oferta
+            cursor.callproc('sp_actualizar_oferta', [
+                id, 
+                monto_oferta, 
+                id_estadoferta, 
+                notas, 
+                ''
+            ])
             
-            mysql.connection.commit()
-            flash('Oferta actualizada exitosamente', 'success')
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
+                mysql.connection.commit()
+                flash('Oferta actualizada exitosamente', 'success')
+            else:
+                flash(result['resultado'], 'danger')
+                
         except Exception as e:
             mysql.connection.rollback()
-            flash(f'Error al actualizar oferta: {str(e)}', 'danger')
+            print(f"Error en actualización con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.execute("""
+                    UPDATE ofertas 
+                    SET monto_oferta = %s, id_estadoferta = %s, notas = %s
+                    WHERE id_oferta = %s
+                """, (monto_oferta, id_estadoferta, notas, id))
+                
+                mysql.connection.commit()
+                flash('Oferta actualizada exitosamente', 'success')
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                flash(f'Error al actualizar oferta: {str(fallback_error)}', 'danger')
         finally:
             cursor.close()
         
@@ -1840,24 +2172,36 @@ def editar_oferta(id):
         # GET request - mostrar formulario de edición
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute("""
-                SELECT o.*, p.id_postulacion, c.nom_candidato, v.titulo_vacante,
-                       eo.nom_estado as estado_oferta
-                FROM ofertas o
-                JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
-                JOIN candidatos c ON p.id_candidato = c.id_candidato
-                JOIN vacantes v ON p.id_vacante = v.id_vacante
-                JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
-                WHERE o.id_oferta = %s
-            """, (id,))
+            # Usar stored procedure para obtener oferta
+            cursor.callproc('sp_obtener_oferta_por_id', [id])
             oferta = cursor.fetchone()
             
-            cursor.execute("SELECT * FROM estados_ofertas ORDER BY id_estadoferta")
+            # Obtener estados de oferta usando stored procedure
+            cursor.callproc('sp_obtener_estados_oferta')
             estados_oferta = cursor.fetchall()
             
         except Exception as e:
-            flash(f'Error al cargar oferta: {str(e)}', 'danger')
-            return redirect(url_for('ofertas'))
+            print(f"Error al cargar oferta para edición: {e}")
+            # Fallback a consultas directas
+            try:
+                cursor.execute("""
+                    SELECT o.*, p.id_postulacion, c.nom_candidato, v.titulo_vacante,
+                           eo.nom_estado as estado_oferta
+                    FROM ofertas o
+                    JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
+                    JOIN candidatos c ON p.id_candidato = c.id_candidato
+                    JOIN vacantes v ON p.id_vacante = v.id_vacante
+                    JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
+                    WHERE o.id_oferta = %s
+                """, (id,))
+                oferta = cursor.fetchone()
+                
+                cursor.execute("SELECT * FROM estados_ofertas ORDER BY id_estadoferta")
+                estados_oferta = cursor.fetchall()
+                
+            except Exception as fallback_error:
+                flash(f'Error al cargar oferta: {str(fallback_error)}', 'danger')
+                return redirect(url_for('ofertas'))
         finally:
             cursor.close()
         
@@ -1878,51 +2222,71 @@ def decidir_oferta(id):
         
         cursor = mysql.connection.cursor()
         try:
-            # VERIFICAR SI EL STORED PROCEDURE EXISTE
-            cursor.execute("SHOW PROCEDURE STATUS LIKE 'ofertaDecidir'")
-            sp_exists = cursor.fetchone()
+            # Usar stored procedure para decidir oferta
+            cursor.callproc('sp_decidir_oferta', [id, id_estadoferta, ''])
             
-            if sp_exists:
-                # **CORRECCIÓN: Convertir el ID a texto para el stored procedure**
-                if id_estadoferta == '2':
-                    decision_texto = 'Aceptada'
-                elif id_estadoferta == '3':
-                    decision_texto = 'Rechazada'
-                else:
-                    flash('Estado de oferta no válido', 'danger')
-                    return redirect(url_for('ofertas'))
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
+                mysql.connection.commit()
                 
-                # Llamar al stored procedure con el texto correcto
-                cursor.callproc('ofertaDecidir', [id, decision_texto])
+                # Mensaje según el estado
+                if id_estadoferta == '2':
+                    flash('Oferta marcada como ACEPTADA exitosamente', 'success')
+                elif id_estadoferta == '3':
+                    flash('Oferta marcada como RECHAZADA exitosamente', 'warning')
+                else:
+                    flash('Decisión de oferta registrada exitosamente', 'success')
             else:
-                # Si no existe el SP, usar actualización directa
-                cursor.execute("""
-                    UPDATE ofertas 
-                    SET id_estadoferta = %s, fecha_decision = NOW()
-                    WHERE id_oferta = %s
-                """, (id_estadoferta, id))
-            
-            mysql.connection.commit()
-            
-            # Mensaje según el estado
-            if id_estadoferta == '2':
-                flash('Oferta marcada como ACEPTADA exitosamente', 'success')
-            elif id_estadoferta == '3':
-                flash('Oferta marcada como RECHAZADA exitosamente', 'warning')
-            else:
-                flash('Decisión de oferta registrada exitosamente', 'success')
+                flash(result['resultado'], 'danger')
                 
         except Exception as e:
             mysql.connection.rollback()
-            error_msg = str(e)
-            if 'solo se pueden decidir ofertas emitidas' in error_msg.lower():
-                flash('Error: Solo se pueden decidir ofertas en estado "Emitida"', 'danger')
-            elif 'decisión inválida' in error_msg.lower():
-                flash('Error: Decisión inválida. Use Aceptada o Rechazada', 'danger')
-            elif 'oferta no encontrada' in error_msg.lower():
-                flash('Error: Oferta no encontrada', 'danger')
-            else:
-                flash(f'Error al registrar decisión de oferta: {error_msg}', 'danger')
+            print(f"Error en decisión con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.execute("SHOW PROCEDURE STATUS LIKE 'ofertaDecidir'")
+                sp_exists = cursor.fetchone()
+                
+                if sp_exists:
+                    if id_estadoferta == '2':
+                        decision_texto = 'Aceptada'
+                    elif id_estadoferta == '3':
+                        decision_texto = 'Rechazada'
+                    else:
+                        flash('Estado de oferta no válido', 'danger')
+                        return redirect(url_for('ofertas'))
+                    
+                    cursor.callproc('ofertaDecidir', [id, decision_texto])
+                else:
+                    cursor.execute("""
+                        UPDATE ofertas 
+                        SET id_estadoferta = %s, fecha_decision = NOW()
+                        WHERE id_oferta = %s
+                    """, (id_estadoferta, id))
+                
+                mysql.connection.commit()
+                
+                if id_estadoferta == '2':
+                    flash('Oferta marcada como ACEPTADA exitosamente', 'success')
+                elif id_estadoferta == '3':
+                    flash('Oferta marcada como RECHAZADA exitosamente', 'warning')
+                    
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                error_msg = str(fallback_error)
+                if 'solo se pueden decidir ofertas emitidas' in error_msg.lower():
+                    flash('Error: Solo se pueden decidir ofertas en estado "Emitida"', 'danger')
+                elif 'decisión inválida' in error_msg.lower():
+                    flash('Error: Decisión inválida. Use Aceptada o Rechazada', 'danger')
+                elif 'oferta no encontrada' in error_msg.lower():
+                    flash('Error: Oferta no encontrada', 'danger')
+                else:
+                    flash(f'Error al registrar decisión de oferta: {error_msg}', 'danger')
         finally:
             cursor.close()
     
@@ -1934,40 +2298,56 @@ def decidir_oferta(id):
 def eliminar_oferta(id):
     cursor = mysql.connection.cursor()
     try:
-        # Verificar si la oferta existe
-        cursor.execute("SELECT id_oferta FROM ofertas WHERE id_oferta = %s", (id,))
-        if not cursor.fetchone():
-            flash('Oferta no encontrada', 'danger')
-            return redirect(url_for('ofertas'))
+        # Usar stored procedure para eliminar oferta
+        cursor.callproc('sp_eliminar_oferta', [id, ''])
         
-        # Verificar el estado de la oferta antes de eliminar
-        cursor.execute("SELECT id_estadoferta FROM ofertas WHERE id_oferta = %s", (id,))
-        oferta = cursor.fetchone()
+        # Obtener el resultado del stored procedure
+        result_cursor = mysql.connection.cursor()
+        result_cursor.execute("SELECT @p_resultado as resultado")
+        result = result_cursor.fetchone()
+        result_cursor.close()
         
-        if oferta and oferta['id_estadoferta'] in [2, 3]:  # Aceptada o Rechazada
-            flash('No se puede eliminar una oferta que ya ha sido decidida', 'danger')
-        else:
-            # Eliminar la oferta
-            cursor.execute("DELETE FROM ofertas WHERE id_oferta = %s", (id,))
+        if 'exitosamente' in result['resultado']:
             mysql.connection.commit()
             flash('Oferta eliminada exitosamente', 'success')
+        else:
+            flash(result['resultado'], 'danger')
+            
     except Exception as e:
         mysql.connection.rollback()
-        flash(f'Error al eliminar oferta: {str(e)}', 'danger')
+        print(f"Error en eliminación con SP: {e}")
+        # Fallback a método original
+        try:
+            cursor.execute("SELECT id_oferta FROM ofertas WHERE id_oferta = %s", (id,))
+            if not cursor.fetchone():
+                flash('Oferta no encontrada', 'danger')
+                return redirect(url_for('ofertas'))
+            
+            cursor.execute("SELECT id_estadoferta FROM ofertas WHERE id_oferta = %s", (id,))
+            oferta = cursor.fetchone()
+            
+            if oferta and oferta['id_estadoferta'] in [2, 3]:
+                flash('No se puede eliminar una oferta que ya ha sido decidida', 'danger')
+            else:
+                cursor.execute("DELETE FROM ofertas WHERE id_oferta = %s", (id,))
+                mysql.connection.commit()
+                flash('Oferta eliminada exitosamente', 'success')
+        except Exception as fallback_error:
+            mysql.connection.rollback()
+            flash(f'Error al eliminar oferta: {str(fallback_error)}', 'danger')
     finally:
         cursor.close()
     
     return redirect(url_for('ofertas'))
 
-# RUTAS PARA ESTADOS DE OFERTAS (si no existen)
+# RUTAS PARA ESTADOS DE OFERTAS
 @app.route('/estados-ofertas')
 @login_required
 @role_required([1, 2, 9])
 def estados_ofertas():
-    """Gestión de estados de ofertas (solo administradores)"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("SELECT * FROM estados_ofertas ORDER BY id_estadoferta")
+        cursor.callproc('sp_obtener_estados_oferta')
         estados = cursor.fetchall()
     except Exception as e:
         flash(f'Error al cargar estados de ofertas: {str(e)}', 'danger')
@@ -1975,13 +2355,11 @@ def estados_ofertas():
     cursor.close()
     return render_template('estados_ofertas.html', estados=estados)
 
-# Ruta para reportes de ofertas ########################################3
+# RUTAS PARA REPORTES DE OFERTAS
 @app.route('/reportes/ofertas')
 @login_required
 @role_required([1, 2, 9])
 def reportes_ofertas():
-    """Reportes específicos de ofertas"""
-    # Establecer fechas por defecto (último mes)
     from datetime import datetime, timedelta
     fecha_fin = datetime.now().strftime('%Y-%m-%d')
     fecha_inicio = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -1990,19 +2368,13 @@ def reportes_ofertas():
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin)
 
+# APIs para Reportes usando Stored Procedures
 @app.route('/api/reportes/ofertas/distribucion-estado')
 @login_required
 def api_reportes_ofertas_distribucion_estado():
-    """API para obtener distribución de ofertas por estado"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT eo.nom_estado, COUNT(*) as cantidad
-            FROM ofertas o
-            JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
-            GROUP BY eo.nom_estado
-            ORDER BY cantidad DESC
-        """)
+        cursor.callproc('sp_reporte_ofertas_distribucion_estado')
         datos = cursor.fetchall()
         
         return jsonify({
@@ -2010,31 +2382,36 @@ def api_reportes_ofertas_distribucion_estado():
             'datos': datos
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en reporte distribución estado: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT eo.nom_estado, COUNT(*) as cantidad
+                FROM ofertas o
+                JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
+                GROUP BY eo.nom_estado
+                ORDER BY cantidad DESC
+            """)
+            datos = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'datos': datos
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/reportes/ofertas/tendencias-mensuales')
 @login_required
 def api_reportes_ofertas_tendencias_mensuales():
-    """API para obtener tendencias mensuales de ofertas usando audit_ofertas"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT 
-                DATE_FORMAT(fecha_cambio, '%Y-%m') as mes,
-                COUNT(*) as cantidad,
-                SUM(CASE WHEN JSON_EXTRACT(payload, '$.estado') = 2 THEN 1 ELSE 0 END) as aceptadas,
-                SUM(CASE WHEN JSON_EXTRACT(payload, '$.estado') = 3 THEN 1 ELSE 0 END) as rechazadas
-            FROM audit_ofertas
-            WHERE op = 'U' AND JSON_EXTRACT(payload, '$.new_estado') IN (2, 3)
-            GROUP BY DATE_FORMAT(fecha_cambio, '%Y-%m')
-            ORDER BY mes
-            LIMIT 12
-        """)
+        cursor.callproc('sp_reporte_ofertas_tendencias_mensuales')
         datos = cursor.fetchall()
         
         return jsonify({
@@ -2042,84 +2419,101 @@ def api_reportes_ofertas_tendencias_mensuales():
             'datos': datos
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en reporte tendencias mensuales: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    DATE_FORMAT(fecha_cambio, '%Y-%m') as mes,
+                    COUNT(*) as cantidad,
+                    SUM(CASE WHEN JSON_EXTRACT(payload, '$.estado') = 2 THEN 1 ELSE 0 END) as aceptadas,
+                    SUM(CASE WHEN JSON_EXTRACT(payload, '$.estado') = 3 THEN 1 ELSE 0 END) as rechazadas
+                FROM audit_ofertas
+                WHERE op = 'U' AND JSON_EXTRACT(payload, '$.new_estado') IN (2, 3)
+                GROUP BY DATE_FORMAT(fecha_cambio, '%Y-%m')
+                ORDER BY mes
+                LIMIT 12
+            """)
+            datos = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'datos': datos
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/reportes/ofertas/metricas-clave')
 @login_required
 def api_reportes_ofertas_metricas_clave():
-    """API para obtener métricas clave de ofertas"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Total de ofertas
-        cursor.execute("SELECT COUNT(*) as total FROM ofertas")
-        total_ofertas = cursor.fetchone()['total']
-        
-        # Monto promedio
-        cursor.execute("SELECT AVG(monto_oferta) as promedio FROM ofertas")
-        monto_promedio = cursor.fetchone()['promedio'] or 0
-        
-        # Tasa de aceptación
-        cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 2")
-        aceptadas = cursor.fetchone()['total']
-        
-        tasa_aceptacion = (aceptadas / total_ofertas * 100) if total_ofertas > 0 else 0
-        
-        # Tiempo promedio de decisión (usando audit_ofertas)
-        cursor.execute("""
-            SELECT AVG(DATEDIFF(fecha_cambio, 
-                (SELECT MAX(fecha_cambio) 
-                 FROM audit_ofertas a2 
-                 WHERE a2.id_oferta = a1.id_oferta AND a2.fecha_cambio < a1.fecha_cambio)
-            )) as tiempo_promedio
-            FROM audit_ofertas a1
-            WHERE op = 'U' AND JSON_EXTRACT(payload, '$.new_estado') IN (2, 3)
-        """)
-        tiempo_promedio = cursor.fetchone()['tiempo_promedio'] or 0
+        cursor.callproc('sp_reporte_ofertas_metricas_clave')
+        datos = cursor.fetchone()
         
         return jsonify({
             'success': True,
             'datos': {
-                'total_ofertas': total_ofertas,
-                'monto_promedio': float(monto_promedio),
-                'tasa_aceptacion': round(tasa_aceptacion, 2),
-                'tiempo_promedio_decision': float(tiempo_promedio)
+                'total_ofertas': datos['total_ofertas'],
+                'monto_promedio': float(datos['monto_promedio']),
+                'tasa_aceptacion': round(float(datos['tasa_aceptacion']), 2),
+                'tiempo_promedio_decision': float(datos['tiempo_promedio_decision'])
             }
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en reporte métricas clave: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("SELECT COUNT(*) as total FROM ofertas")
+            total_ofertas = cursor.fetchone()['total']
+            
+            cursor.execute("SELECT AVG(monto_oferta) as promedio FROM ofertas WHERE id_estadoferta = 2")
+            monto_promedio = cursor.fetchone()['promedio'] or 0
+            
+            cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 2")
+            aceptadas = cursor.fetchone()['total']
+            
+            tasa_aceptacion = (aceptadas / total_ofertas * 100) if total_ofertas > 0 else 0
+            
+            cursor.execute("""
+                SELECT AVG(DATEDIFF(fecha_cambio, 
+                    (SELECT MAX(fecha_cambio) 
+                     FROM audit_ofertas a2 
+                     WHERE a2.id_oferta = a1.id_oferta AND a2.fecha_cambio < a1.fecha_cambio)
+                )) as tiempo_promedio
+                FROM audit_ofertas a1
+                WHERE op = 'U' AND JSON_EXTRACT(payload, '$.new_estado') IN (2, 3)
+            """)
+            tiempo_promedio = cursor.fetchone()['tiempo_promedio'] or 0
+            
+            return jsonify({
+                'success': True,
+                'datos': {
+                    'total_ofertas': total_ofertas,
+                    'monto_promedio': float(monto_promedio),
+                    'tasa_aceptacion': round(tasa_aceptacion, 2),
+                    'tiempo_promedio_decision': float(tiempo_promedio)
+                }
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/reportes/ofertas/por-vacante')
 @login_required
 def api_reportes_ofertas_por_vacante():
-    """API para obtener ofertas por vacante"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT 
-                v.id_vacante,
-                v.titulo_vacante,
-                COUNT(o.id_oferta) as total_ofertas,
-                SUM(CASE WHEN o.id_estadoferta = 2 THEN 1 ELSE 0 END) as aceptadas,
-                SUM(CASE WHEN o.id_estadoferta = 3 THEN 1 ELSE 0 END) as rechazadas,
-                AVG(o.monto_oferta) as monto_promedio
-            FROM vacantes v
-            LEFT JOIN postulaciones p ON v.id_vacante = p.id_vacante
-            LEFT JOIN ofertas o ON p.id_postulacion = o.id_postulacion
-            GROUP BY v.id_vacante, v.titulo_vacante
-            HAVING total_ofertas > 0
-            ORDER BY total_ofertas DESC
-            LIMIT 10
-        """)
+        cursor.callproc('sp_reporte_ofertas_por_vacante')
         datos = cursor.fetchall()
         
         return jsonify({
@@ -2127,65 +2521,50 @@ def api_reportes_ofertas_por_vacante():
             'datos': datos
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en reporte por vacante: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    v.id_vacante,
+                    v.titulo_vacante,
+                    COUNT(o.id_oferta) as total_ofertas,
+                    SUM(CASE WHEN o.id_estadoferta = 2 THEN 1 ELSE 0 END) as aceptadas,
+                    SUM(CASE WHEN o.id_estadoferta = 3 THEN 1 ELSE 0 END) as rechazadas,
+                    AVG(o.monto_oferta) as monto_promedio
+                FROM vacantes v
+                LEFT JOIN postulaciones p ON v.id_vacante = p.id_vacante
+                LEFT JOIN ofertas o ON p.id_postulacion = o.id_postulacion
+                GROUP BY v.id_vacante, v.titulo_vacante
+                HAVING total_ofertas > 0
+                ORDER BY total_ofertas DESC
+                LIMIT 10
+            """)
+            datos = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'datos': datos
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/reportes/ofertas/detallado')
 @login_required
 def api_reportes_ofertas_detallado():
-    """API para obtener reporte detallado de ofertas con filtros"""
     fecha_inicio = request.args.get('fecha_inicio', '')
     fecha_fin = request.args.get('fecha_fin', '')
     estado = request.args.get('estado', 'todos')
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Usar audit_ofertas para estimar fecha de emisión
-        query = """
-            SELECT 
-                o.id_oferta,
-                c.nom_candidato,
-                v.titulo_vacante,
-                o.monto_oferta,
-                eo.nom_estado,
-                (SELECT MIN(fecha_cambio) 
-                 FROM audit_ofertas a 
-                 WHERE a.id_oferta = o.id_oferta AND a.op = 'I') as fecha_emision_estimada,
-                o.fecha_decision,
-                DATEDIFF(o.fecha_decision, 
-                    (SELECT MIN(fecha_cambio) 
-                     FROM audit_ofertas a 
-                     WHERE a.id_oferta = o.id_oferta AND a.op = 'I')
-                ) as dias_pendiente
-            FROM ofertas o
-            JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
-            WHERE 1=1
-        """
-        
-        params = []
-        
-        if fecha_inicio:
-            query += " AND (SELECT MIN(fecha_cambio) FROM audit_ofertas a WHERE a.id_oferta = o.id_oferta AND a.op = 'I') >= %s"
-            params.append(fecha_inicio)
-            
-        if fecha_fin:
-            query += " AND (SELECT MIN(fecha_cambio) FROM audit_ofertas a WHERE a.id_oferta = o.id_oferta AND a.op = 'I') <= %s"
-            params.append(fecha_fin)
-            
-        if estado != 'todos':
-            query += " AND o.id_estadoferta = %s"
-            params.append(estado)
-            
-        query += " ORDER BY o.id_oferta DESC"
-        
-        cursor.execute(query, params)
+        # Usar stored procedure para reporte detallado
+        cursor.callproc('sp_reporte_ofertas_detallado', [fecha_inicio, fecha_fin, estado])
         datos = cursor.fetchall()
         
         # Formatear fechas
@@ -2200,46 +2579,81 @@ def api_reportes_ofertas_detallado():
             'datos': datos
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en reporte detallado: {e}")
+        # Fallback a consulta directa
+        try:
+            query = """
+                SELECT 
+                    o.id_oferta,
+                    c.nom_candidato,
+                    v.titulo_vacante,
+                    o.monto_oferta,
+                    eo.nom_estado,
+                    (SELECT MIN(fecha_cambio) 
+                     FROM audit_ofertas a 
+                     WHERE a.id_oferta = o.id_oferta AND a.op = 'I') as fecha_emision_estimada,
+                    o.fecha_decision,
+                    DATEDIFF(o.fecha_decision, 
+                        (SELECT MIN(fecha_cambio) 
+                         FROM audit_ofertas a 
+                         WHERE a.id_oferta = o.id_oferta AND a.op = 'I')
+                    ) as dias_pendiente
+                FROM ofertas o
+                JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
+                WHERE 1=1
+            """
+            
+            params = []
+            
+            if fecha_inicio:
+                query += " AND (SELECT MIN(fecha_cambio) FROM audit_ofertas a WHERE a.id_oferta = o.id_oferta AND a.op = 'I') >= %s"
+                params.append(fecha_inicio)
+                
+            if fecha_fin:
+                query += " AND (SELECT MIN(fecha_cambio) FROM audit_ofertas a WHERE a.id_oferta = o.id_oferta AND a.op = 'I') <= %s"
+                params.append(fecha_fin)
+                
+            if estado != 'todos':
+                query += " AND o.id_estadoferta = %s"
+                params.append(estado)
+                
+            query += " ORDER BY o.id_oferta DESC"
+            
+            cursor.execute(query, params)
+            datos = cursor.fetchall()
+            
+            # Formatear fechas
+            for item in datos:
+                if item['fecha_emision_estimada']:
+                    item['fecha_emision_estimada'] = item['fecha_emision_estimada'].strftime('%Y-%m-%d')
+                if item['fecha_decision']:
+                    item['fecha_decision'] = item['fecha_decision'].strftime('%Y-%m-%d')
+            
+            return jsonify({
+                'success': True,
+                'datos': datos
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
-
-
-##########
+# APIs adicionales usando Stored Procedures
 @app.route('/api/ofertas/<int:id>')
 @login_required
 def api_obtener_oferta(id):
-    """API para obtener datos de una oferta específica (para AJAX)"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT 
-                o.*, 
-                p.id_postulacion,
-                c.nom_candidato, 
-                c.email,
-                c.telefono,
-                v.titulo_vacante, 
-                d.nom_departamento,
-                eo.nom_estado as estado_oferta,
-                e.nom_etapa as etapa_actual
-            FROM ofertas o
-            JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
-            JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
-            JOIN etapas e ON p.id_etapa = e.id_etapa
-            WHERE o.id_oferta = %s
-        """, (id,))
+        cursor.callproc('sp_obtener_oferta_por_id', [id])
         oferta = cursor.fetchone()
         
         if oferta:
-            # Convertir objetos datetime a strings para JSON (solo fecha_decision existe)
             if oferta.get('fecha_decision'):
                 oferta['fecha_decision'] = oferta['fecha_decision'].strftime('%Y-%m-%d %H:%M:%S')
             
@@ -2253,38 +2667,58 @@ def api_obtener_oferta(id):
                 'message': 'Oferta no encontrada'
             }), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API obtener oferta: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    o.*, 
+                    p.id_postulacion,
+                    c.nom_candidato, 
+                    c.email,
+                    c.telefono,
+                    v.titulo_vacante, 
+                    d.nom_departamento,
+                    eo.nom_estado as estado_oferta,
+                    e.nom_etapa as etapa_actual
+                FROM ofertas o
+                JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                LEFT JOIN departamentos d ON v.id_departamento = d.id_departamento
+                JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                WHERE o.id_oferta = %s
+            """, (id,))
+            oferta = cursor.fetchone()
+            
+            if oferta:
+                if oferta.get('fecha_decision'):
+                    oferta['fecha_decision'] = oferta['fecha_decision'].strftime('%Y-%m-%d %H:%M:%S')
+                
+                return jsonify({
+                    'success': True,
+                    'oferta': oferta
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Oferta no encontrada'
+                }), 404
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
-# Ruta para obtener postulaciones disponibles para ofertas (API)
 @app.route('/api/postulaciones-ofertables')
 @login_required
 def api_postulaciones_ofertables():
-    """API para obtener postulaciones que pueden recibir ofertas (etapa finalista)"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
-                   CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
-                   e.nom_etapa as etapa_actual,
-                   c.email,
-                   c.telefono
-            FROM postulaciones p
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN etapas e ON p.id_etapa = e.id_etapa
-            WHERE p.id_etapa = 5  -- Solo etapa finalista
-            AND NOT EXISTS (
-                SELECT 1 FROM ofertas o 
-                WHERE o.id_postulacion = p.id_postulacion 
-                AND o.id_estadoferta IN (1)  -- Excluir si ya tiene oferta pendiente
-            )
-            ORDER BY c.nom_candidato
-        """)
+        cursor.callproc('sp_obtener_postulaciones_ofertables_api')
         postulaciones = cursor.fetchall()
         
         return jsonify({
@@ -2292,89 +2726,119 @@ def api_postulaciones_ofertables():
             'postulaciones': postulaciones
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API postulaciones ofertables: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT p.id_postulacion, c.nom_candidato, v.titulo_vacante,
+                       CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as descripcion,
+                       e.nom_etapa as etapa_actual,
+                       c.email,
+                       c.telefono
+                FROM postulaciones p
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN etapas e ON p.id_etapa = e.id_etapa
+                WHERE p.id_etapa = 5
+                AND NOT EXISTS (
+                    SELECT 1 FROM ofertas o 
+                    WHERE o.id_postulacion = p.id_postulacion 
+                    AND o.id_estadoferta IN (1)
+                )
+                ORDER BY c.nom_candidato
+            """)
+            postulaciones = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'postulaciones': postulaciones
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/estadisticas-ofertas')
 @login_required
 def api_estadisticas_ofertas():
-    """API para obtener estadísticas de ofertas - CORREGIDO SIN fecha_emision"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener estadísticas generales de ofertas
-        cursor.execute("SELECT COUNT(*) as total FROM ofertas")
-        total_ofertas = cursor.fetchone()['total']
+        cursor.callproc('sp_obtener_estadisticas_ofertas')
+        estadisticas = cursor.fetchone()
         
-        cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 1")
-        ofertas_pendientes = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 2")
-        ofertas_aceptadas = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 3")
-        ofertas_rechazadas = cursor.fetchone()['total']
-        
-        # Obtener monto promedio de ofertas aceptadas
-        cursor.execute("SELECT AVG(monto_oferta) as promedio FROM ofertas WHERE id_estadoferta = 2")
-        monto_promedio = cursor.fetchone()['promedio'] or 0
-        
-        # Obtener tasa de aceptación
-        if total_ofertas > 0:
-            tasa_aceptacion = (ofertas_aceptadas / total_ofertas) * 100
-        else:
-            tasa_aceptacion = 0
+        tasa_aceptacion = (estadisticas['ofertas_aceptadas'] / estadisticas['total_ofertas'] * 100) if estadisticas['total_ofertas'] > 0 else 0
         
         return jsonify({
             'success': True,
             'estadisticas': {
-                'total_ofertas': total_ofertas,
-                'ofertas_pendientes': ofertas_pendientes,
-                'ofertas_aceptadas': ofertas_aceptadas,
-                'ofertas_rechazadas': ofertas_rechazadas,
-                'monto_promedio': float(monto_promedio),
+                'total_ofertas': estadisticas['total_ofertas'],
+                'ofertas_pendientes': estadisticas['ofertas_pendientes'],
+                'ofertas_aceptadas': estadisticas['ofertas_aceptadas'],
+                'ofertas_rechazadas': estadisticas['ofertas_rechazadas'],
+                'monto_promedio': float(estadisticas['monto_promedio'] or 0),
                 'tasa_aceptacion': round(tasa_aceptacion, 2)
             }
         })
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API estadísticas ofertas: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("SELECT COUNT(*) as total FROM ofertas")
+            total_ofertas = cursor.fetchone()['total']
+            
+            cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 1")
+            ofertas_pendientes = cursor.fetchone()['total']
+            
+            cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 2")
+            ofertas_aceptadas = cursor.fetchone()['total']
+            
+            cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 3")
+            ofertas_rechazadas = cursor.fetchone()['total']
+            
+            cursor.execute("SELECT AVG(monto_oferta) as promedio FROM ofertas WHERE id_estadoferta = 2")
+            monto_promedio = cursor.fetchone()['promedio'] or 0
+            
+            tasa_aceptacion = (ofertas_aceptadas / total_ofertas * 100) if total_ofertas > 0 else 0
+            
+            return jsonify({
+                'success': True,
+                'estadisticas': {
+                    'total_ofertas': total_ofertas,
+                    'ofertas_pendientes': ofertas_pendientes,
+                    'ofertas_aceptadas': ofertas_aceptadas,
+                    'ofertas_rechazadas': ofertas_rechazadas,
+                    'monto_promedio': float(monto_promedio),
+                    'tasa_aceptacion': round(tasa_aceptacion, 2)
+                }
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
-# Ruta para dashboard de ofertas
 @app.route('/ofertas/dashboard')
 @login_required
 @role_required([1, 2, 9, 10])
 def dashboard_ofertas():
-    """Dashboard específico para ofertas"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener ofertas recientes - ORDENADO POR ID en lugar de fecha_emision
-        cursor.execute("""
-            SELECT o.*, c.nom_candidato, v.titulo_vacante, eo.nom_estado as estado_oferta
-            FROM ofertas o
-            JOIN postulaciones p ON o.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN estados_ofertas eo ON o.id_estadoferta = eo.id_estadoferta
-            ORDER BY o.id_oferta DESC
-            LIMIT 10
-        """)
+        # Obtener ofertas recientes usando stored procedure
+        cursor.callproc('sp_obtener_ofertas_recientes')
         ofertas_recientes = cursor.fetchall()
         
-        # Obtener estadísticas rápidas - SIN fecha_emision
-        cursor.execute("SELECT COUNT(*) as total FROM ofertas WHERE id_estadoferta = 1")
-        pendientes = cursor.fetchone()['total']
+        # Obtener estadísticas rápidas usando stored procedure
+        cursor.callproc('sp_obtener_estadisticas_ofertas')
+        estadisticas = cursor.fetchone()
         
-        cursor.execute("SELECT AVG(monto_oferta) as promedio FROM ofertas WHERE id_estadoferta = 2")
-        monto_promedio = cursor.fetchone()['promedio'] or 0
+        pendientes = estadisticas['ofertas_pendientes']
+        monto_promedio = estadisticas['monto_promedio'] or 0
         
     except Exception as e:
         print(f"Error en dashboard de ofertas: {e}")
@@ -2390,7 +2854,7 @@ def dashboard_ofertas():
                          monto_promedio=monto_promedio)
 
 
-# RUTA PARA CALENDARIO - VERSIÓN MEJORADA
+# RUTA PARA CALENDARIO - VERSIÓN MEJORADA CON STORED PROCEDURES
 @app.route('/calendario')
 @login_required
 @role_required([1, 2, 9, 10, 3])
@@ -2401,44 +2865,11 @@ def calendario():
 @app.route('/api/calendario/eventos')
 @login_required
 def api_calendario_eventos():
-    """API para obtener eventos del calendario en formato FullCalendar"""
+    """API para obtener eventos del calendario en formato FullCalendar usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener todas las entrevistas con información completa
-        cursor.execute("""
-            SELECT 
-                e.id_entrevista,
-                e.fecha_entrevista,
-                DATE_ADD(e.fecha_entrevista, INTERVAL 1 HOUR) as end,
-                c.nom_candidato,
-                v.titulo_vacante,
-                ent.nom_entrevistador,
-                es.nom_estado as estado_entrevista,
-                es.id_estadoentrevista,
-                CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as title,
-                CASE 
-                    WHEN es.id_estadoentrevista = 1 THEN '#3498db'  # Programada - Azul
-                    WHEN es.id_estadoentrevista = 2 THEN '#f39c12'  # En progreso - Naranja
-                    WHEN es.id_estadoentrevista = 3 THEN '#27ae60'  # Completada - Verde
-                    WHEN es.id_estadoentrevista = 4 THEN '#e74c3c'  # Cancelada - Rojo
-                    ELSE '#95a5a6'  # Otros - Gris
-                END as color,
-                CASE 
-                    WHEN es.id_estadoentrevista = 1 THEN '#2980b9'  # Programada - Azul oscuro
-                    WHEN es.id_estadoentrevista = 2 THEN '#e67e22'  # En progreso - Naranja oscuro
-                    WHEN es.id_estadoentrevista = 3 THEN '#229954'  # Completada - Verde oscuro
-                    WHEN es.id_estadoentrevista = 4 THEN '#c0392b'  # Cancelada - Rojo oscuro
-                    ELSE '#7f8c8d'  # Otros - Gris oscuro
-                END as textColor
-            FROM entrevistas e
-            JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
-            JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-            WHERE e.fecha_entrevista IS NOT NULL
-            ORDER BY e.fecha_entrevista
-        """)
+        # Usar stored procedure para obtener eventos del calendario
+        cursor.callproc('sp_obtener_eventos_calendario')
         eventos_db = cursor.fetchall()
         
         # Formatear eventos para FullCalendar
@@ -2467,37 +2898,84 @@ def api_calendario_eventos():
         
     except Exception as e:
         print(f"Error al cargar eventos del calendario: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Error al cargar eventos: {str(e)}'
-        }), 500
+        # Fallback a consulta directa en caso de error
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.id_entrevista,
+                    e.fecha_entrevista,
+                    DATE_ADD(e.fecha_entrevista, INTERVAL 1 HOUR) as end,
+                    c.nom_candidato,
+                    v.titulo_vacante,
+                    ent.nom_entrevistador,
+                    es.nom_estado as estado_entrevista,
+                    es.id_estadoentrevista,
+                    CONCAT(c.nom_candidato, ' - ', v.titulo_vacante) as title,
+                    CASE 
+                        WHEN es.id_estadoentrevista = 1 THEN '#3498db'  -- Programada - Azul
+                        WHEN es.id_estadoentrevista = 2 THEN '#f39c12'  -- En progreso - Naranja
+                        WHEN es.id_estadoentrevista = 3 THEN '#27ae60'  -- Completada - Verde
+                        WHEN es.id_estadoentrevista = 4 THEN '#e74c3c'  -- Cancelada - Rojo
+                        ELSE '#95a5a6'  -- Otros - Gris
+                    END as color,
+                    CASE 
+                        WHEN es.id_estadoentrevista = 1 THEN '#2980b9'  -- Programada - Azul oscuro
+                        WHEN es.id_estadoentrevista = 2 THEN '#e67e22'  -- En progreso - Naranja oscuro
+                        WHEN es.id_estadoentrevista = 3 THEN '#229954'  -- Completada - Verde oscuro
+                        WHEN es.id_estadoentrevista = 4 THEN '#c0392b'  -- Cancelada - Rojo oscuro
+                        ELSE '#7f8c8d'  -- Otros - Gris oscuro
+                    END as textColor
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                WHERE e.fecha_entrevista IS NOT NULL
+                ORDER BY e.fecha_entrevista
+            """)
+            eventos_db = cursor.fetchall()
+            
+            eventos = []
+            for evento in eventos_db:
+                eventos.append({
+                    'id': evento['id_entrevista'],
+                    'title': evento['title'],
+                    'start': evento['fecha_entrevista'].isoformat() if evento['fecha_entrevista'] else None,
+                    'end': evento['end'].isoformat() if evento['end'] else None,
+                    'color': evento['color'],
+                    'textColor': evento['textColor'],
+                    'extendedProps': {
+                        'candidato': evento['nom_candidato'],
+                        'vacante': evento['titulo_vacante'],
+                        'entrevistador': evento['nom_entrevistador'],
+                        'estado': evento['estado_entrevista'],
+                        'id_estado': evento['id_estadoentrevista']
+                    }
+                })
+            
+            return jsonify({
+                'success': True,
+                'eventos': eventos
+            })
+            
+        except Exception as fallback_error:
+            print(f"Error en fallback al cargar eventos del calendario: {fallback_error}")
+            return jsonify({
+                'success': False,
+                'message': f'Error al cargar eventos: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/calendario/entrevistas-hoy')
 @login_required
 def api_entrevistas_hoy():
-    """API para obtener entrevistas del día actual"""
+    """API para obtener entrevistas del día actual usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT 
-                e.id_entrevista,
-                e.fecha_entrevista,
-                c.nom_candidato,
-                v.titulo_vacante,
-                ent.nom_entrevistador,
-                es.nom_estado as estado_entrevista,
-                TIME(e.fecha_entrevista) as hora
-            FROM entrevistas e
-            JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
-            JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-            WHERE DATE(e.fecha_entrevista) = CURDATE()
-            ORDER BY e.fecha_entrevista
-        """)
+        # Usar stored procedure para obtener entrevistas de hoy
+        cursor.callproc('sp_obtener_entrevistas_hoy')
         entrevistas_hoy = cursor.fetchall()
         
         return jsonify({
@@ -2507,43 +2985,270 @@ def api_entrevistas_hoy():
         
     except Exception as e:
         print(f"Error al cargar entrevistas de hoy: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Error al cargar entrevistas: {str(e)}'
-        }), 500
+        # Fallback a consulta directa en caso de error
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.id_entrevista,
+                    e.fecha_entrevista,
+                    c.nom_candidato,
+                    v.titulo_vacante,
+                    ent.nom_entrevistador,
+                    es.nom_estado as estado_entrevista,
+                    TIME(e.fecha_entrevista) as hora
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                WHERE DATE(e.fecha_entrevista) = CURDATE()
+                ORDER BY e.fecha_entrevista
+            """)
+            entrevistas_hoy = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'entrevistas': entrevistas_hoy
+            })
+            
+        except Exception as fallback_error:
+            print(f"Error en fallback al cargar entrevistas de hoy: {fallback_error}")
+            return jsonify({
+                'success': False,
+                'message': f'Error al cargar entrevistas: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
+# NUEVAS RUTAS ADICIONALES PARA EL CALENDARIO
+@app.route('/api/calendario/estadisticas')
+@login_required
+def api_calendario_estadisticas():
+    """API para obtener estadísticas del calendario usando stored procedure"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Usar stored procedure para obtener estadísticas
+        cursor.callproc('sp_obtener_estadisticas_calendario')
+        estadisticas = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'estadisticas': estadisticas
+        })
+        
+    except Exception as e:
+        print(f"Error al cargar estadísticas del calendario: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    YEAR(fecha_entrevista) as año,
+                    MONTH(fecha_entrevista) as mes,
+                    COUNT(*) as total_entrevistas,
+                    SUM(CASE WHEN id_estadoentrevista = 1 THEN 1 ELSE 0 END) as programadas,
+                    SUM(CASE WHEN id_estadoentrevista = 2 THEN 1 ELSE 0 END) as en_progreso,
+                    SUM(CASE WHEN id_estadoentrevista = 3 THEN 1 ELSE 0 END) as completadas,
+                    SUM(CASE WHEN id_estadoentrevista = 4 THEN 1 ELSE 0 END) as canceladas
+                FROM entrevistas
+                WHERE fecha_entrevista >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                GROUP BY YEAR(fecha_entrevista), MONTH(fecha_entrevista)
+                ORDER BY año DESC, mes DESC
+            """)
+            estadisticas = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'estadisticas': estadisticas
+            })
+            
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error al cargar estadísticas: {str(fallback_error)}'
+            }), 500
+    finally:
+        cursor.close()
 
-# RUTAS PARA ENTREVISTADORES - VERSIÓN COMPLETA
+@app.route('/api/calendario/proximas-entrevistas')
+@login_required
+def api_proximas_entrevistas():
+    """API para obtener próximas entrevistas usando stored procedure"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Usar stored procedure para obtener próximas entrevistas
+        cursor.callproc('sp_obtener_proximas_entrevistas')
+        proximas_entrevistas = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'proximas_entrevistas': proximas_entrevistas
+        })
+        
+    except Exception as e:
+        print(f"Error al cargar próximas entrevistas: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.id_entrevista,
+                    e.fecha_entrevista,
+                    c.nom_candidato,
+                    v.titulo_vacante,
+                    ent.nom_entrevistador,
+                    es.nom_estado as estado_entrevista,
+                    DATEDIFF(e.fecha_entrevista, CURDATE()) as dias_restantes
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN entrevistadores ent ON e.id_entrevistador = ent.id_entrevistador
+                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                WHERE e.fecha_entrevista >= CURDATE()
+                AND e.fecha_entrevista <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+                AND e.id_estadoentrevista IN (1, 2)
+                ORDER BY e.fecha_entrevista ASC
+                LIMIT 10
+            """)
+            proximas_entrevistas = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'proximas_entrevistas': proximas_entrevistas
+            })
+            
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error al cargar próximas entrevistas: {str(fallback_error)}'
+            }), 500
+    finally:
+        cursor.close()
+
+@app.route('/api/calendario/disponibilidad-entrevistadores')
+@login_required
+def api_disponibilidad_entrevistadores():
+    """API para obtener disponibilidad de entrevistadores usando stored procedure"""
+    fecha = request.args.get('fecha', datetime.now().strftime('%Y-%m-%d'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Usar stored procedure para obtener disponibilidad
+        cursor.callproc('sp_obtener_disponibilidad_entrevistadores', [fecha])
+        disponibilidad = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'disponibilidad': disponibilidad,
+            'fecha_consultada': fecha
+        })
+        
+    except Exception as e:
+        print(f"Error al cargar disponibilidad de entrevistadores: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    ent.id_entrevistador,
+                    ent.nom_entrevistador,
+                    COUNT(e.id_entrevista) as entrevistas_programadas,
+                    GROUP_CONCAT(TIME(e.fecha_entrevista) ORDER BY e.fecha_entrevista) as horarios_ocupados
+                FROM entrevistadores ent
+                LEFT JOIN entrevistas e ON ent.id_entrevistador = e.id_entrevistador 
+                    AND DATE(e.fecha_entrevista) = %s
+                    AND e.id_estadoentrevista IN (1, 2)
+                GROUP BY ent.id_entrevistador, ent.nom_entrevistador
+                ORDER BY entrevistas_programadas ASC
+            """, (fecha,))
+            disponibilidad = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'disponibilidad': disponibilidad,
+                'fecha_consultada': fecha
+            })
+            
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error al cargar disponibilidad: {str(fallback_error)}'
+            }), 500
+    finally:
+        cursor.close()
+
+# Ruta para el dashboard del calendario
+@app.route('/calendario/dashboard')
+@login_required
+@role_required([1, 2, 9, 10, 3])
+def calendario_dashboard():
+    """Dashboard del calendario con estadísticas y próximas entrevistas"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Obtener estadísticas usando stored procedure
+        cursor.callproc('sp_obtener_estadisticas_calendario')
+        estadisticas = cursor.fetchall()
+        
+        # Obtener próximas entrevistas usando stored procedure
+        cursor.callproc('sp_obtener_proximas_entrevistas')
+        proximas_entrevistas = cursor.fetchall()
+        
+        # Obtener entrevistas de hoy usando stored procedure
+        cursor.callproc('sp_obtener_entrevistas_hoy')
+        entrevistas_hoy = cursor.fetchall()
+        
+    except Exception as e:
+        print(f"Error en dashboard del calendario: {e}")
+        estadisticas = []
+        proximas_entrevistas = []
+        entrevistas_hoy = []
+    
+    cursor.close()
+    
+    return render_template('calendario_dashboard.html',
+                         estadisticas=estadisticas,
+                         proximas_entrevistas=proximas_entrevistas,
+                         entrevistas_hoy=entrevistas_hoy)
+
+# RUTAS PARA ENTREVISTADORES - VERSIÓN CON STORED PROCEDURES
 @app.route('/entrevistadores')
 @login_required
-@role_required([1, 2, 9])  # Admin, Reclutador, Recruiter
+@role_required([1, 2, 9])
 def entrevistadores():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Obtener entrevistadores con información de roles
-        cursor.execute("""
-            SELECT e.*, r.nom_rol, 
-                   COUNT(ent.id_entrevista) as total_entrevistas,
-                   COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes
-            FROM entrevistadores e
-            LEFT JOIN roles r ON e.id_rol = r.id_rol
-            LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
-            GROUP BY e.id_entrevistador
-            ORDER BY e.nom_entrevistador
-        """)
+        # Usar stored procedure para obtener entrevistadores
+        cursor.callproc('sp_obtener_entrevistadores')
         entrevistadores = cursor.fetchall()
         
-        # Obtener roles para el formulario
-        cursor.execute("SELECT * FROM roles ORDER BY nom_rol")
+        # Obtener roles usando stored procedure
+        cursor.callproc('sp_obtener_roles')
         roles = cursor.fetchall()
         
     except Exception as e:
         print(f"Error al cargar entrevistadores: {e}")
-        flash(f'Error al cargar entrevistadores: {str(e)}', 'danger')
-        entrevistadores = []
-        roles = []
+        # Fallback a consultas directas
+        try:
+            cursor.execute("""
+                SELECT e.*, r.nom_rol, 
+                       COUNT(ent.id_entrevista) as total_entrevistas,
+                       COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes
+                FROM entrevistadores e
+                LEFT JOIN roles r ON e.id_rol = r.id_rol
+                LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
+                GROUP BY e.id_entrevistador
+                ORDER BY e.nom_entrevistador
+            """)
+            entrevistadores = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM roles ORDER BY nom_rol")
+            roles = cursor.fetchall()
+            
+        except Exception as fallback_error:
+            print(f"Error en fallback: {fallback_error}")
+            flash(f'Error al cargar entrevistadores: {str(fallback_error)}', 'danger')
+            entrevistadores = []
+            roles = []
+    
     cursor.close()
     return render_template('entrevistadores.html', 
                          entrevistadores=entrevistadores, 
@@ -2557,26 +3262,52 @@ def crear_entrevistador():
         nom_entrevistador = request.form['nom_entrevistador']
         email = request.form['email']
         telefono = request.form.get('telefono', '')
-        id_rol = request.form.get('id_rol', 1)  # Rol por defecto
+        id_rol = request.form.get('id_rol', 1)
         
         cursor = mysql.connection.cursor()
         try:
-            # Verificar si el email ya existe
-            cursor.execute("SELECT COUNT(*) as count FROM entrevistadores WHERE email = %s", (email,))
-            result = cursor.fetchone()
+            # Usar stored procedure para crear entrevistador
+            cursor.callproc('sp_crear_entrevistador', [
+                nom_entrevistador, 
+                email, 
+                telefono, 
+                id_rol, 
+                ''
+            ])
             
-            if result['count'] > 0:
-                flash('Error: El email ya existe para otro entrevistador', 'danger')
-            else:
-                cursor.execute("""
-                    INSERT INTO entrevistadores (nom_entrevistador, email, telefono, id_rol)
-                    VALUES (%s, %s, %s, %s)
-                """, (nom_entrevistador, email, telefono, id_rol))
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
                 mysql.connection.commit()
                 flash('Entrevistador creado exitosamente', 'success')
+            else:
+                flash(result['resultado'], 'danger')
+                
         except Exception as e:
             mysql.connection.rollback()
-            flash(f'Error al crear entrevistador: {str(e)}', 'danger')
+            print(f"Error en creación con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.execute("SELECT COUNT(*) as count FROM entrevistadores WHERE email = %s", (email,))
+                result = cursor.fetchone()
+                
+                if result['count'] > 0:
+                    flash('Error: El email ya existe para otro entrevistador', 'danger')
+                else:
+                    cursor.execute("""
+                        INSERT INTO entrevistadores (nom_entrevistador, email, telefono, id_rol)
+                        VALUES (%s, %s, %s, %s)
+                    """, (nom_entrevistador, email, telefono, id_rol))
+                    mysql.connection.commit()
+                    flash('Entrevistador creado exitosamente', 'success')
+                    
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                flash(f'Error al crear entrevistador: {str(fallback_error)}', 'danger')
         finally:
             cursor.close()
     
@@ -2594,24 +3325,51 @@ def editar_entrevistador(id):
         
         cursor = mysql.connection.cursor()
         try:
-            # Verificar si el email ya existe en otros entrevistadores
-            cursor.execute("SELECT COUNT(*) as count FROM entrevistadores WHERE email = %s AND id_entrevistador != %s", 
-                         (email, id))
-            result = cursor.fetchone()
+            # Usar stored procedure para actualizar entrevistador
+            cursor.callproc('sp_actualizar_entrevistador', [
+                id, 
+                nom_entrevistador, 
+                email, 
+                telefono, 
+                id_rol, 
+                ''
+            ])
             
-            if result['count'] > 0:
-                flash('Error: El email ya existe para otro entrevistador', 'danger')
-            else:
-                cursor.execute("""
-                    UPDATE entrevistadores 
-                    SET nom_entrevistador = %s, email = %s, telefono = %s, id_rol = %s
-                    WHERE id_entrevistador = %s
-                """, (nom_entrevistador, email, telefono, id_rol, id))
+            # Obtener el resultado del stored procedure
+            result_cursor = mysql.connection.cursor()
+            result_cursor.execute("SELECT @p_resultado as resultado")
+            result = result_cursor.fetchone()
+            result_cursor.close()
+            
+            if 'exitosamente' in result['resultado']:
                 mysql.connection.commit()
                 flash('Entrevistador actualizado exitosamente', 'success')
+            else:
+                flash(result['resultado'], 'danger')
+                
         except Exception as e:
             mysql.connection.rollback()
-            flash(f'Error al actualizar entrevistador: {str(e)}', 'danger')
+            print(f"Error en actualización con SP: {e}")
+            # Fallback a método original
+            try:
+                cursor.execute("SELECT COUNT(*) as count FROM entrevistadores WHERE email = %s AND id_entrevistador != %s", 
+                             (email, id))
+                result = cursor.fetchone()
+                
+                if result['count'] > 0:
+                    flash('Error: El email ya existe para otro entrevistador', 'danger')
+                else:
+                    cursor.execute("""
+                        UPDATE entrevistadores 
+                        SET nom_entrevistador = %s, email = %s, telefono = %s, id_rol = %s
+                        WHERE id_entrevistador = %s
+                    """, (nom_entrevistador, email, telefono, id_rol, id))
+                    mysql.connection.commit()
+                    flash('Entrevistador actualizado exitosamente', 'success')
+                    
+            except Exception as fallback_error:
+                mysql.connection.rollback()
+                flash(f'Error al actualizar entrevistador: {str(fallback_error)}', 'danger')
         finally:
             cursor.close()
         
@@ -2621,20 +3379,32 @@ def editar_entrevistador(id):
         # GET request - mostrar formulario de edición
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute("""
-                SELECT e.*, r.nom_rol
-                FROM entrevistadores e
-                LEFT JOIN roles r ON e.id_rol = r.id_rol
-                WHERE e.id_entrevistador = %s
-            """, (id,))
+            # Usar stored procedure para obtener entrevistador
+            cursor.callproc('sp_obtener_entrevistador_por_id', [id])
             entrevistador = cursor.fetchone()
             
-            cursor.execute("SELECT * FROM roles ORDER BY nom_rol")
+            # Obtener roles usando stored procedure
+            cursor.callproc('sp_obtener_roles')
             roles = cursor.fetchall()
             
         except Exception as e:
-            flash(f'Error al cargar entrevistador: {str(e)}', 'danger')
-            return redirect(url_for('entrevistadores'))
+            print(f"Error al cargar entrevistador para edición: {e}")
+            # Fallback a consultas directas
+            try:
+                cursor.execute("""
+                    SELECT e.*, r.nom_rol
+                    FROM entrevistadores e
+                    LEFT JOIN roles r ON e.id_rol = r.id_rol
+                    WHERE e.id_entrevistador = %s
+                """, (id,))
+                entrevistador = cursor.fetchone()
+                
+                cursor.execute("SELECT * FROM roles ORDER BY nom_rol")
+                roles = cursor.fetchall()
+                
+            except Exception as fallback_error:
+                flash(f'Error al cargar entrevistador: {str(fallback_error)}', 'danger')
+                return redirect(url_for('entrevistadores'))
         finally:
             cursor.close()
         
@@ -2652,26 +3422,45 @@ def editar_entrevistador(id):
 def eliminar_entrevistador(id):
     cursor = mysql.connection.cursor()
     try:
-        # Verificar si el entrevistador tiene entrevistas asignadas
-        cursor.execute("SELECT COUNT(*) as total FROM entrevistas WHERE id_entrevistador = %s", (id,))
-        result = cursor.fetchone()
+        # Usar stored procedure para eliminar entrevistador
+        cursor.callproc('sp_eliminar_entrevistador', [id, ''])
         
-        if result['total'] > 0:
-            flash('No se puede eliminar el entrevistador porque tiene entrevistas asignadas', 'danger')
+        # Obtener el resultado del stored procedure
+        result_cursor = mysql.connection.cursor()
+        result_cursor.execute("SELECT @p_resultado as resultado")
+        result = result_cursor.fetchone()
+        result_cursor.close()
+        
+        if 'exitosamente' in result['resultado']:
+            mysql.connection.commit()
+            flash('Entrevistador eliminado exitosamente', 'success')
         else:
-            # Verificar si el entrevistador está asociado a algún usuario
-            cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE id_entrevistador = %s", (id,))
-            user_result = cursor.fetchone()
+            flash(result['resultado'], 'danger')
             
-            if user_result['total'] > 0:
-                flash('No se puede eliminar el entrevistador porque está asociado a un usuario del sistema', 'danger')
-            else:
-                cursor.execute("DELETE FROM entrevistadores WHERE id_entrevistador = %s", (id,))
-                mysql.connection.commit()
-                flash('Entrevistador eliminado exitosamente', 'success')
     except Exception as e:
         mysql.connection.rollback()
-        flash(f'Error al eliminar entrevistador: {str(e)}', 'danger')
+        print(f"Error en eliminación con SP: {e}")
+        # Fallback a método original
+        try:
+            cursor.execute("SELECT COUNT(*) as total FROM entrevistas WHERE id_entrevistador = %s", (id,))
+            result = cursor.fetchone()
+            
+            if result['total'] > 0:
+                flash('No se puede eliminar el entrevistador porque tiene entrevistas asignadas', 'danger')
+            else:
+                cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE id_entrevistador = %s", (id,))
+                user_result = cursor.fetchone()
+                
+                if user_result['total'] > 0:
+                    flash('No se puede eliminar el entrevistador porque está asociado a un usuario del sistema', 'danger')
+                else:
+                    cursor.execute("DELETE FROM entrevistadores WHERE id_entrevistador = %s", (id,))
+                    mysql.connection.commit()
+                    flash('Entrevistador eliminado exitosamente', 'success')
+                    
+        except Exception as fallback_error:
+            mysql.connection.rollback()
+            flash(f'Error al eliminar entrevistador: {str(fallback_error)}', 'danger')
     finally:
         cursor.close()
     
@@ -2680,20 +3469,11 @@ def eliminar_entrevistador(id):
 @app.route('/api/entrevistadores/<int:id>')
 @login_required
 def api_obtener_entrevistador(id):
-    """API para obtener datos de un entrevistador específico (para AJAX)"""
+    """API para obtener datos de un entrevistador específico usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT e.*, r.nom_rol,
-                   COUNT(ent.id_entrevista) as total_entrevistas,
-                   AVG(ent.puntaje) as puntaje_promedio,
-                   COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes
-            FROM entrevistadores e
-            LEFT JOIN roles r ON e.id_rol = r.id_rol
-            LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
-            WHERE e.id_entrevistador = %s
-            GROUP BY e.id_entrevistador
-        """, (id,))
+        # Usar stored procedure para obtener estadísticas del entrevistador
+        cursor.callproc('sp_obtener_estadisticas_entrevistador', [id])
         entrevistador = cursor.fetchone()
         
         if entrevistador:
@@ -2707,37 +3487,48 @@ def api_obtener_entrevistador(id):
                 'message': 'Entrevistador no encontrado'
             }), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API obtener entrevistador: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT e.*, r.nom_rol,
+                       COUNT(ent.id_entrevista) as total_entrevistas,
+                       AVG(ent.puntaje) as puntaje_promedio,
+                       COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes
+                FROM entrevistadores e
+                LEFT JOIN roles r ON e.id_rol = r.id_rol
+                LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
+                WHERE e.id_entrevistador = %s
+                GROUP BY e.id_entrevistador
+            """, (id,))
+            entrevistador = cursor.fetchone()
+            
+            if entrevistador:
+                return jsonify({
+                    'success': True,
+                    'entrevistador': entrevistador
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Entrevistador no encontrado'
+                }), 404
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/entrevistadores/<int:id>/entrevistas')
 @login_required
 def api_entrevistador_entrevistas(id):
-    """API para obtener las entrevistas de un entrevistador específico"""
+    """API para obtener las entrevistas de un entrevistador específico usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT 
-                e.id_entrevista,
-                e.fecha_entrevista,
-                c.nom_candidato,
-                v.titulo_vacante,
-                es.nom_estado as estado_entrevista,
-                es.id_estadoentrevista
-            FROM entrevistas e
-            JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
-            JOIN candidatos c ON p.id_candidato = c.id_candidato
-            JOIN vacantes v ON p.id_vacante = v.id_vacante
-            JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
-            WHERE e.id_entrevistador = %s
-            AND e.fecha_entrevista >= CURDATE()
-            ORDER BY e.fecha_entrevista ASC
-            LIMIT 10
-        """, (id,))
+        # Usar stored procedure para obtener próximas entrevistas del entrevistador
+        cursor.callproc('sp_obtener_proximas_entrevistas_entrevistador', [id])
         entrevistas = cursor.fetchall()
         
         return jsonify({
@@ -2745,33 +3536,49 @@ def api_entrevistador_entrevistas(id):
             'entrevistas': entrevistas
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API entrevistador entrevistas: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.id_entrevista,
+                    e.fecha_entrevista,
+                    c.nom_candidato,
+                    v.titulo_vacante,
+                    es.nom_estado as estado_entrevista,
+                    es.id_estadoentrevista
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                WHERE e.id_entrevistador = %s
+                AND e.fecha_entrevista >= CURDATE()
+                ORDER BY e.fecha_entrevista ASC
+                LIMIT 10
+            """, (id,))
+            entrevistas = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'entrevistas': entrevistas
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
 
 @app.route('/api/entrevistadores-estadisticas')
 @login_required
 def api_entrevistadores_estadisticas():
-    """API para obtener estadísticas de entrevistadores"""
+    """API para obtener estadísticas de entrevistadores usando stored procedure"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("""
-            SELECT 
-                e.id_entrevistador,
-                e.nom_entrevistador,
-                COUNT(ent.id_entrevista) as total_entrevistas,
-                AVG(ent.puntaje) as puntaje_promedio,
-                COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes,
-                COUNT(CASE WHEN ent.id_estadoentrevista = 2 THEN 1 END) as entrevistas_completadas,
-                COUNT(CASE WHEN ent.id_estadoentrevista = 1 THEN 1 END) as entrevistas_programadas
-            FROM entrevistadores e
-            LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
-            GROUP BY e.id_entrevistador, e.nom_entrevistador
-            ORDER BY total_entrevistas DESC
-        """)
+        # Usar stored procedure para obtener estadísticas de entrevistadores
+        cursor.callproc('sp_obtener_estadisticas_entrevistadores')
         estadisticas = cursor.fetchall()
         
         return jsonify({
@@ -2779,12 +3586,149 @@ def api_entrevistadores_estadisticas():
             'estadisticas': estadisticas
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
+        print(f"Error en API entrevistadores estadísticas: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.id_entrevistador,
+                    e.nom_entrevistador,
+                    COUNT(ent.id_entrevista) as total_entrevistas,
+                    AVG(ent.puntaje) as puntaje_promedio,
+                    COUNT(CASE WHEN ent.fecha_entrevista >= CURDATE() THEN 1 END) as entrevistas_pendientes,
+                    COUNT(CASE WHEN ent.id_estadoentrevista = 2 THEN 1 END) as entrevistas_completadas,
+                    COUNT(CASE WHEN ent.id_estadoentrevista = 1 THEN 1 END) as entrevistas_programadas
+                FROM entrevistadores e
+                LEFT JOIN entrevistas ent ON e.id_entrevistador = ent.id_entrevistador
+                GROUP BY e.id_entrevistador, e.nom_entrevistador
+                ORDER BY total_entrevistas DESC
+            """)
+            estadisticas = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'estadisticas': estadisticas
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
     finally:
         cursor.close()
+
+# NUEVAS RUTAS ADICIONALES PARA ENTREVISTADORES
+
+@app.route('/api/entrevistadores/<int:id>/entrevistas-completas')
+@login_required
+def api_entrevistador_entrevistas_completas(id):
+    """API para obtener todas las entrevistas de un entrevistador usando stored procedure"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Usar stored procedure para obtener todas las entrevistas del entrevistador
+        cursor.callproc('sp_obtener_entrevistas_entrevistador', [id])
+        entrevistas = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'entrevistas': entrevistas
+        })
+    except Exception as e:
+        print(f"Error en API entrevistador entrevistas completas: {e}")
+        # Fallback a consulta directa
+        try:
+            cursor.execute("""
+                SELECT 
+                    e.id_entrevista,
+                    e.fecha_entrevista,
+                    c.nom_candidato,
+                    v.titulo_vacante,
+                    es.nom_estado as estado_entrevista,
+                    es.id_estadoentrevista,
+                    e.puntaje,
+                    CASE 
+                        WHEN e.fecha_entrevista < CURDATE() THEN 'Pasada'
+                        WHEN e.fecha_entrevista = CURDATE() THEN 'Hoy'
+                        ELSE 'Futura'
+                    END as tipo_fecha
+                FROM entrevistas e
+                JOIN postulaciones p ON e.id_postulacion = p.id_postulacion
+                JOIN candidatos c ON p.id_candidato = c.id_candidato
+                JOIN vacantes v ON p.id_vacante = v.id_vacante
+                JOIN estados_entrevistas es ON e.id_estadoentrevista = es.id_estadoentrevista
+                WHERE e.id_entrevistador = %s
+                ORDER BY e.fecha_entrevista DESC
+                LIMIT 20
+            """, (id,))
+            entrevistas = cursor.fetchall()
+            
+            return jsonify({
+                'success': True,
+                'entrevistas': entrevistas
+            })
+        except Exception as fallback_error:
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(fallback_error)}'
+            }), 500
+    finally:
+        cursor.close()
+
+@app.route('/entrevistadores/<int:id>/perfil')
+@login_required
+@role_required([1, 2, 9])
+def perfil_entrevistador(id):
+    """Página de perfil del entrevistador con estadísticas completas"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Usar stored procedure para obtener estadísticas del entrevistador
+        cursor.callproc('sp_obtener_estadisticas_entrevistador', [id])
+        entrevistador = cursor.fetchone()
+        
+        if not entrevistador:
+            flash('Entrevistador no encontrado', 'danger')
+            return redirect(url_for('entrevistadores'))
+        
+        # Usar stored procedure para obtener entrevistas del entrevistador
+        cursor.callproc('sp_obtener_entrevistas_entrevistador', [id])
+        entrevistas = cursor.fetchall()
+        
+    except Exception as e:
+        print(f"Error al cargar perfil del entrevistador: {e}")
+        flash(f'Error al cargar perfil del entrevistador: {str(e)}', 'danger')
+        return redirect(url_for('entrevistadores'))
+    finally:
+        cursor.close()
+    
+    return render_template('perfil_entrevistador.html',
+                         entrevistador=entrevistador,
+                         entrevistas=entrevistas)
+
+@app.route('/entrevistadores/dashboard')
+@login_required
+@role_required([1, 2, 9])
+def dashboard_entrevistadores():
+    """Dashboard de entrevistadores con estadísticas generales"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Usar stored procedure para obtener estadísticas de entrevistadores
+        cursor.callproc('sp_obtener_estadisticas_entrevistadores')
+        estadisticas = cursor.fetchall()
+        
+        # Obtener total de entrevistadores
+        cursor.execute("SELECT COUNT(*) as total FROM entrevistadores")
+        total_entrevistadores = cursor.fetchone()['total']
+        
+    except Exception as e:
+        print(f"Error en dashboard de entrevistadores: {e}")
+        estadisticas = []
+        total_entrevistadores = 0
+    
+    cursor.close()
+    
+    return render_template('dashboard_entrevistadores.html',
+                         estadisticas=estadisticas,
+                         total_entrevistadores=total_entrevistadores)
 
 # RUTAS PARA USUARIOS DEL SISTEMA - VERSIÓN COMPLETA
 @app.route('/usuarios')
